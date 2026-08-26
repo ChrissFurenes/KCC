@@ -187,7 +187,7 @@ jobs:
             BINARY="$1"
             ARCH="$2"
             
-            DEB_VERSION="${PKG_VERSION/-/~}"
+            DEB_VERSION="${PKG_VERSION/-/\~}"
             PACKAGE_DIR="pkg-deb-${ARCH}"
 
             echo ""
