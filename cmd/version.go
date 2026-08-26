@@ -1,5 +1,5 @@
 package cmd
 
-func version() string{
-	return "0.7.0beta"
+func Version() string {
+	return "0.8.0"
 }
