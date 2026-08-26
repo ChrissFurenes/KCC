@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -15,6 +16,7 @@ import (
 
 	//"github.com/ChrissFurenes/k8s-Config-changer/cmd"
 
+	"github.com/chrissfurenes/kcc/cmd"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 	"gopkg.in/yaml.v3"
@@ -23,48 +25,42 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-var configs []string
-var path = kubePath()
-var newFolderPath = "/"
-var PrevFolder = []string{"config"}
+//const version = "0.7.1beta"
 
-var DefaultPath = filepath.FromSlash(kubePath() + "/configs")
+type App struct {
+	Items         []Item
+	KubePath      string
+	CurrentFolder string
+	UI            *tview.Application
+	ConfigList    *tview.List
+	InfoData      *tview.TextView
+	CommandList   *tview.TextView
+	Grid          *tview.Grid
+}
 
-var stuff []Item
+type Item struct {
+	Name        string
+	Path        string
+	FileName    string
+	File        []byte
+	IsDir       bool
+	IsConfig    bool
+	IsActive    bool
+	IsTalos     bool
+	IsBack      bool
+	Config      ConfigInformation
+	ClusterData ClusterData
+}
 
-var config []ConfigInformation
-var infos []Info
-var app = tview.NewApplication()
-var configList = tview.NewList().ShowSecondaryText(false)
-var infoData = tview.NewTextView()
-
-// var commandList = tview.NewTextView().SetText("[F5] Refresh | [F10] Settings | [F2] Open").SetTextAlign(tview.AlignCenter)
-var commandList = tview.NewTextView().SetText("[F5] Refresh").SetTextAlign(tview.AlignCenter)
-
-var grid = tview.NewGrid().
-	SetRows(-1, 25).
-	SetColumns(-1, -1).
-	SetBorders(false).
-	AddItem(configList, 0, 0, 5, 1, 0, 0, true).
-	AddItem(infoData, 0, 1, 5, 1, 0, 0, false).
-	AddItem(commandList, 5, 0, 1, 2, 1, 0, false)
-
-type Info struct {
-	Active        bool
-	Name          string
-	User          string
-	port          string
-	ip            string
-	ping          bool
-	path          string
-	nodes         int
-	pods          int
-	status        string
-	test          string
-	folder        bool
-	filesInFolder int
-	prevFolder    string
-	isBack        bool
+type ClusterData struct {
+	User      string
+	Address   string
+	Port      string
+	Reachable bool
+	Nodes     int
+	Pods      int
+	Status    string
+	Test      string
 }
 
 type ConfigInformation struct {
@@ -84,167 +80,23 @@ type ConfigInformation struct {
 	} `yaml:"contexts"`
 }
 
-type Config struct {
-	Name     string
-	Path     string
-	FullPath string
-	FileName string
-	Verified bool
-}
-type Item struct {
-	Name        string
-	Path        string
-	FullPath    string
-	FileName    string
-	File        []byte
-	IsDir       bool
-	IsConfig    bool
-	IsVerified  bool
-	IsActive    bool
-	IsTalos     bool
-	IsBack      bool
-	Config      ConfigInformation
-	ClusterData struct {
-		Address   string
-		Port      int64
-		Nodes     int
-		Pods      int
-		Status    string
-		Test      string
-		Namespace string
+func NewApp() *App {
+	a := &App{
+		KubePath:      kubePath(),
+		CurrentFolder: "",
+		UI:            tview.NewApplication(),
+		ConfigList:    tview.NewList().ShowSecondaryText(false),
+		InfoData:      tview.NewTextView(),
+		CommandList:   tview.NewTextView().SetText("[F5] Refresh").SetTextAlign(tview.AlignCenter),
 	}
-}
-
-func (c *Item) NewItem(path string) {
-	fileInfo, err := os.Stat(filepath.FromSlash(path))
-	FileErr(err)
-
-	c.Name = c.Config.Clusters[0].Name
-	c.SetPath(path)
-	c.IsDir = c.IsFolder()
-	c.IsConfig = fileInfo.Mode().IsRegular()
-	if c.IsConfig && !c.IsDir {
-		file, errors := os.ReadFile(filepath.FromSlash(c.Path))
-		FileErr(errors)
-		c.File = file
-	}
-
-}
-func (c *Item) GetFile() []byte {
-	if c.IsConfig && !c.IsDir {
-		file, errors := os.ReadFile(c.Path)
-		if !FileErr(errors) {
-			c.File = file
-			return file
-		}
-	}
-	return nil
-}
-func (c *Item) SetFileName(name string) {
-	c.FileName = name
-}
-func (c *Item) GetFileName() string {
-	return c.FileName
-}
-func (c *Item) SetPath(path string) {
-	c.Path = path
-}
-func (c *Item) GetPath() string {
-	return c.Path
-}
-func (c *Item) IsConfigFile() bool {
-	return c.IsConfig
-}
-func (c *Item) IsFolder() bool {
-	return c.IsDir
-}
-func (c *Item) Apply(){
-
-}
-func (c *Item) Ping(){
-
-}
-
-func FileErr(err error) bool {
-	if err != nil {
-		if os.IsNotExist(err) {
-			fmt.Println("File does not exist")
-			return true
-		} else if os.IsPermission(err) {
-			fmt.Println("Permission denied")
-			return false
-		} else if os.IsExist(err) {
-			fmt.Println("File exists")
-		} else {
-			fmt.Println(err)
-			return true
-		}
-	}
-	return false
-}
-
-func InfoDataDisplay(data Info) string {
-	var information = ""
-	if !data.folder && !data.isBack {
-		var statusIcon = "🔴"
-		var color = "[red]"
-		if data.ping {
-			statusIcon = "🟢"
-			color = "[green]"
-		}
-		information = "Name:.. " + data.Name +
-			"\n\nUser:.. " + data.User +
-			"\nIP:.... " + data.ip +
-			"\nPort:.. " + data.port +
-			"\nPing:.. " + color + strings.ToUpper(strconv.FormatBool(data.ping)) + "[::-] [white]" + statusIcon +
-			"\nPath:.. " + data.path[strings.LastIndex(data.path, "/")+1:]
-		if data.ping {
-			information = information + "\nNodes:. " + strconv.Itoa(data.nodes) +
-				"\nPods:.. " + strconv.Itoa(data.pods)
-		}
-		if data.status != "" {
-			information = information + "\n\nStatus: " + data.status
-		}
-		if len(data.test) > 0 {
-			information = information + "\n\n\nTests:. " + data.test
-		}
-		return information
-
-	}
-
-	information = ReadFolderInfo(path + "/configs" + newFolderPath + data.path)
-	return information
-}
-
-func TestConnection(ip string, port string) bool {
-	address := net.JoinHostPort(ip, port)
-	conn, err := net.DialTimeout("tcp", address, 2000*time.Millisecond)
-	if err != nil {
-		return false
-	}
-	defer func(conn net.Conn) {
-		err := conn.Close()
-		if err != nil {
-		}
-	}(conn)
-	return true
-}
-
-func Move(data ConfigInformation) Info {
-	var inn Info
-	inn.Active = false
-	inn.Name = data.Clusters[0].Name
-	inn.User = data.Contexts[0].Context.User
-	inn.port = data.Clusters[0].Cluster.Server[strings.LastIndex(data.Clusters[0].Cluster.Server, ":")+1:]
-	inn.ip = data.Clusters[0].Cluster.Server[strings.Index(data.Clusters[0].Cluster.Server, "/")+2 : strings.LastIndex(data.Clusters[0].Cluster.Server, ":")]
-	inn.ping = false
-	inn.path = ""
-	inn.nodes = 0
-	inn.pods = 0
-	inn.status = "[yellow]Getting info from cluster....[::-]"
-	inn.test = ""
-	inn.folder = false
-	return inn
+	a.Grid = tview.NewGrid().
+		SetRows(-1, 25).
+		SetColumns(-1, -1).
+		SetBorders(false).
+		AddItem(a.ConfigList, 0, 0, 5, 1, 0, 0, true).
+		AddItem(a.InfoData, 0, 1, 5, 1, 0, 0, false).
+		AddItem(a.CommandList, 5, 0, 1, 2, 1, 0, false)
+	return a
 }
 
 func UserHomeDir() string {
@@ -253,328 +105,579 @@ func UserHomeDir() string {
 		if home == "" {
 			home = os.Getenv("USERPROFILE")
 		}
-		return filepath.FromSlash(home)
+		return filepath.Clean(home)
 	}
-	return filepath.FromSlash(os.Getenv("HOME"))
+	return filepath.Clean(os.Getenv("HOME"))
 }
 
 func kubePath() string {
-
 	return filepath.Join(UserHomeDir(), ".kube")
 }
 
-func loadConfigs() {
-	entries, err := os.ReadDir(path + "/configs" + newFolderPath)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	var inn Item;
-	inn.Path = path + "/configs" + newFolderPath
-
-	var num = 0
-	if len(newFolderPath) > 1 {
-		var backInfo Info
-		backInfo.isBack = true
-		backInfo.prevFolder = newFolderPath[strings.LastIndex(newFolderPath[0:len(newFolderPath)-1], filepath.FromSlash("/"))+1 : len(newFolderPath)-1]
-		backInfo.folder = false
-		configs = append(configs, " << Back to folder: "+PrevFolder[len(PrevFolder)-1])
-
-		infos = append(infos, backInfo)
-
-		inn.Name = " << Back to folder: "+PrevFolder[len(PrevFolder)-1]
-		inn.IsBack = true
-		inn.IsConfig = false
-		inn.IsDir = false
-
-		num++
-	}
-	if len(entries) == 0 {
-		return
-	}
-	for _, entry := range entries {
-		var newConfig ConfigInformation
-		if entry.IsDir() {
-			configs = append(configs, "📁 "+entry.Name())
-			var newFolder Info
-			newFolder.folder = true
-			newFolder.path = entry.Name()
-			infos = append(infos, newFolder)
-			config = append(config, ConfigInformation{})
-
-			inn.NewItem(filepath.FromSlash(DefaultPath + "/" + newFolderPath + "/" + entry.Name()))
-			inn.IsDir = true
-
-			num++
-			continue
-		}
-		file, err := os.ReadFile(path + "/configs" + newFolderPath + entry.Name())
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		err = yaml.Unmarshal(file, &newConfig)
-		if err != nil {
-			log.Fatal(err)
-		}
-		config = append(config, newConfig)
-		infos = append(infos, Move(newConfig))
-		infos[num].path = filepath.FromSlash(path + "/configs" + newFolderPath + entry.Name())
-
-		if !infos[0].isBack {
-			if IsCurrent(file) {
-				configs = append(configs, "☸  "+config[num].Clusters[0].Name+" - "+"[green]ACTIVE[::-]")
-				infos[num].Active = true
-			} else {
-				configs = append(configs, "☸  "+config[num].Clusters[0].Name)
-			}
-		} else {
-			if IsCurrent(file) {
-				configs = append(configs, "☸  "+config[num-1].Clusters[0].Name+" - "+"[green]ACTIVE[::-]")
-				infos[num].Active = true
-			} else {
-				configs = append(configs, "☸  "+config[num-1].Clusters[0].Name)
-			}
-		}
-		num++
-	}
-
+func (a *App) ConfigDir() string {
+	return filepath.Join(a.KubePath, "configs", a.CurrentFolder)
 }
 
-func GetInfo() {
-	var inn = infos
-	var folder = newFolderPath
-	for i := range inn {
-		if !(inn[i].folder || inn[i].isBack) {
-			inn[i].ping = TestConnection(inn[i].ip, inn[i].port)
-			if inn[i].ping {
-				inn[i].status = ""
-				kubeconfig, err := clientcmd.BuildConfigFromFlags("", inn[i].path)
-				if err != nil {
-					log.Fatal(err)
-				}
-				clientSet, err := kubernetes.NewForConfig(kubeconfig)
-				if err != nil {
-					log.Fatal(err)
-				}
-				nodes, err := clientSet.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
-				if err != nil {
-					log.Fatal(err)
-				}
-				numNodes := len(nodes.Items)
-				inn[i].nodes = numNodes
-				pods, err := clientSet.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{})
-				if err != nil {
-					log.Fatal(err)
-				}
-				inn[i].pods = len(pods.Items)
-			} else {
-				inn[i].status = "[red]Offline[::-]"
-			}
-		}
-		if folder == newFolderPath {
-			infos = inn
-			app.QueueUpdateDraw(func() {
-				cu := configList.GetCurrentItem()
-				refreshConfigs()
-				configList.SetCurrentItem(cu)
-			})
-		} else {
-			break
-		}
+func (c *ClusterData) SetServer(server string) error {
+	u, err := url.Parse(server)
+	if err != nil {
+		return err
+	}
+	if u.Hostname() == "" {
+		return fmt.Errorf("invalid server address: %s", server)
 	}
 
-}
-func ReadFolderInfo(folderPath string) string {
-	files, err := os.ReadDir(filepath.FromSlash(folderPath))
-	if err != nil {
-		log.Fatal(err)
-	}
-	for _, file := range files {
-		if file.IsDir() {
-			continue
+	c.Address = u.Hostname()
+	c.Port = u.Port()
+
+	if c.Port == "" {
+		switch u.Scheme {
+		case "https":
+			c.Port = "443"
+		case "http":
+			c.Port = "80"
+		default:
+			return fmt.Errorf(
+				"server has no port: %s",
+				server,
+			)
 		}
 	}
-	return "Folder path: " + filepath.FromSlash(folderPath)
+	return nil
 }
 
-func IsCurrent(file []byte) bool {
-	current, err := os.ReadFile(filepath.FromSlash(path + "/config"))
+func (c *ClusterData) Ping() bool {
+	address := net.JoinHostPort(c.Address, c.Port)
+
+	conn, err := net.DialTimeout("tcp", address, 2*time.Second)
+
 	if err != nil {
-		log.Fatal(err)
+		c.Reachable = false
+		return false
 	}
-	if bytes.Equal(file, current) {
+	defer conn.Close()
+	c.Reachable = true
+	return true
+}
+
+func (i *Item) Load(path string) error {
+	fileInfo, err := os.Stat(path)
+
+	if err != nil {
+		return err
+	}
+
+	i.Path = filepath.Clean(path)
+	i.FileName = fileInfo.Name()
+	i.Name = fileInfo.Name()
+
+	i.IsDir = fileInfo.IsDir()
+	i.IsConfig = false
+	if i.IsDir {
+		return nil
+	}
+	file, err := os.ReadFile(i.Path)
+	if err != nil {
+		return err
+	}
+	i.File = file
+	var config ConfigInformation
+	if err := yaml.Unmarshal(file, &config); err != nil {
+		return err
+	}
+
+	if len(config.Clusters) == 0 {
+		return fmt.Errorf("config contains no clusters")
+	}
+
+	if len(config.Contexts) == 0 {
+		return fmt.Errorf("config contains no contexts")
+	}
+
+	i.Config = config
+	i.Name = config.Clusters[0].Name
+	i.IsConfig = true
+
+	i.ClusterData.User = config.Contexts[0].Context.User
+	i.ClusterData.Status = "[yellow]Getting info from cluster....[::-]"
+	err = i.ClusterData.SetServer(config.Clusters[0].Cluster.Server)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (i *Item) GetFile() ([]byte, error) {
+	if !i.IsConfig || i.IsDir {
+		return nil, fmt.Errorf("%s is not a config file", i.Path)
+	}
+	file, err := os.ReadFile(i.Path)
+	if err != nil {
+		return nil, err
+	}
+	i.File = file
+	return file, nil
+}
+
+func (i *Item) IsCurrent(kubePath string) bool {
+	if !i.IsConfig {
+		return false
+	}
+	currentPath := filepath.Join(kubePath, "config")
+
+	sourceInfo, sourceErr := os.Stat(i.Path)
+	currentInfo, currentErr := os.Stat(currentPath)
+	if sourceErr == nil && currentErr == nil && os.SameFile(sourceInfo, currentInfo) {
 		return true
 	}
-	return false
+
+	current, err := os.ReadFile(currentPath)
+	if err != nil {
+		return false
+	}
+	file, err := os.ReadFile(i.Path)
+	if err != nil {
+		return false
+	}
+	return bytes.Equal(file, current)
 }
 
-func confirm(name string) {
-	var source = filepath.FromSlash(name)
-	var dest = filepath.FromSlash(path + "/config")
-	err := os.Remove(dest)
-	if err != nil {
-		log.Fatal(err)
+func (i *Item) Apply(kubePath string) error {
+	if !i.IsConfig {
+		return fmt.Errorf("%s is not a config", i.Name)
 	}
-	err = os.Link(source, dest)
-	if err != nil {
-		log.Fatal(err)
+
+	dest := filepath.Join(kubePath, "config")
+	backup := dest + ".kcc-backup"
+	_ = os.Remove(backup)
+
+	if _, err := os.Stat(dest); err == nil {
+		if err := os.Rename(dest, backup); err != nil {
+			return err
+		}
+	} else if !os.IsNotExist(err) {
+		return err
 	}
+
+	if err := os.Link(i.Path, dest); err != nil {
+		if _, backupErr := os.Stat(backup); backupErr == nil {
+			_ = os.Rename(backup, dest)
+		}
+		return err
+	}
+	_ = os.Remove(backup)
+	i.IsActive = true
+	return nil
 }
 
-func refreshConfigs() {
-	var pos = configList.GetCurrentItem()
-	configList.Clear()
+func (i *Item) RefreshClusterInfo() error {
+	if !i.IsConfig || i.IsDir || i.IsBack {
+		return nil
+	}
 
-	if len(configs) == 0 {
+	i.ClusterData.Status = "[yellow]Getting info from cluster....[::-]"
+
+	if !i.ClusterData.Ping() {
+		i.ClusterData.Status = "[red]Offline[::-]"
+		return nil
+	}
+	kubeconfig, err := clientcmd.BuildConfigFromFlags("", i.Path)
+	if err != nil {
+		i.ClusterData.Status = "[red]Config error: " + err.Error() + "[::-]"
+		return err
+	}
+	clientSet, err := kubernetes.NewForConfig(kubeconfig)
+	if err != nil {
+		i.ClusterData.Status = "[red]Client error: " + err.Error() + "[::-]"
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	nodes, err := clientSet.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		i.ClusterData.Status = "[red]Node API error: " + err.Error() + "[::-]"
+		return err
+	}
+	i.ClusterData.Nodes = len(nodes.Items)
+	pods, err := clientSet.CoreV1().Pods("").List(ctx, metav1.ListOptions{})
+	if err != nil {
+		i.ClusterData.Status = "[red]Pod API error: " + err.Error() + "[::-]"
+		return err
+	}
+	i.ClusterData.Pods = len(pods.Items)
+	i.ClusterData.Status = ""
+	return nil
+}
+
+func (i *Item) DisplayName() string {
+	if i.IsBack {
+		return " << Back to folder: " + i.Name
+	}
+	if i.IsDir {
+		return "📁 " + i.Name
+	}
+	if !i.IsConfig {
+		return "⚠ " + i.Name
+	}
+	name := "☸  " + i.Name
+	if i.IsActive {
+		name += " - [green]ACTIVE[::-]"
+	}
+	return name
+}
+
+func (i *Item) InfoText() string {
+
+	if i.IsBack {
+		return ""
+	}
+
+	if i.IsDir {
+		entries, err := os.ReadDir(i.Path)
+		if err != nil {
+			return "Folder path: " + i.Path + "\n\n[red]" + err.Error() + "[::-]"
+		}
+		return fmt.Sprintf("Folder path: %s\nItems: %d", i.Path, len(entries))
+	}
+
+	if !i.IsConfig {
+		information := "Name:.. " + i.Name + "\nPath:.. " + filepath.Base(i.Path)
+		if i.ClusterData.Status != "" {
+			information += "\n\nStatus: " + i.ClusterData.Status
+		}
+		return information
+	}
+
+	data := i.ClusterData
+	statusIcon := "🔴"
+	color := "[red]"
+	if data.Reachable {
+		statusIcon = "🟢"
+		color = "[green]"
+	}
+	information := "Name:.. " + i.Name +
+		"\n\nUser:.. " + data.User +
+		"\nIP:.... " + data.Address +
+		"\nPort:.. " + data.Port +
+		"\nPing:.. " + color + strings.ToUpper(strconv.FormatBool(data.Reachable)) + "[::-] [white]" + statusIcon +
+		"\nPath:.. " + filepath.Base(i.Path)
+
+	if data.Reachable {
+		information += "\nNodes:. " + strconv.Itoa(data.Nodes) + "\nPods:.. " + strconv.Itoa(data.Pods)
+	}
+	if data.Status != "" {
+		information += "\n\nStatus: " + data.Status
+	}
+	if data.Test != "" {
+		information += "\n\n\nTests:. " + data.Test
+	}
+	return information
+}
+
+func (a *App) LoadConfigs() error {
+	a.Items = nil
+	entries, err := os.ReadDir(a.ConfigDir())
+	if err != nil {
+		return err
+	}
+	if a.CurrentFolder != "" {
+		parent := filepath.Dir(a.CurrentFolder)
+		name := "configs"
+		if parent != "." && parent != "" {
+			name = filepath.Base(parent)
+		}
+		a.Items = append(a.Items, Item{Name: name, IsBack: true})
+	}
+	for _, entry := range entries {
+		fullPath := filepath.Join(a.ConfigDir(), entry.Name())
+		var item Item
+		err := item.Load(fullPath)
+		if err != nil {
+			item.Name = entry.Name()
+			item.Path = fullPath
+			item.FileName = entry.Name()
+			item.IsDir = entry.IsDir()
+			item.ClusterData.Status = "[red]" + err.Error() + "[::-]"
+			a.Items = append(a.Items, item)
+			continue
+		}
+		if item.IsConfig {
+			item.IsActive = item.IsCurrent(a.KubePath)
+		}
+		a.Items = append(a.Items, item)
+	}
+	return nil
+}
+
+func (a *App) RefreshConfigList() {
+	oldPosition := a.ConfigList.GetCurrentItem()
+	a.ConfigList.Clear()
+	for index := range a.Items {
+		itemIndex := index
+		a.ConfigList.AddItem(a.Items[index].DisplayName(), "", 0, func() { a.OpenItem(itemIndex) })
+	}
+	count := a.ConfigList.GetItemCount()
+	if count == 0 {
 		return
-	} else {
-
-		for i, configEntry := range configs {
-			configList.AddItem(configEntry, "", 0, func() {
-				if !(infos[i].folder || infos[i].isBack) {
-					app.Stop()
-					confirm(filepath.FromSlash(infos[i].path))
-				} else if infos[i].folder && !infos[i].isBack {
-					newFolderPath = filepath.FromSlash(newFolderPath + infos[i].path + "/")
-					if len(infos[0].prevFolder) != 0 {
-						PrevFolder = append(PrevFolder, infos[0].prevFolder)
-					}
-
-				} else if infos[0].isBack {
-					newFolderPath = newFolderPath[0 : strings.LastIndex(newFolderPath[0:len(newFolderPath)-1], filepath.FromSlash("/"))+1]
-					if len(PrevFolder) > 1 {
-						PrevFolder = PrevFolder[:len(PrevFolder)-1]
-					}
-
-				}
-
-				configs = nil
-				infos = nil
-				config = nil
-				loadConfigs()
-				go GetInfo()
-				refreshConfigs()
-				if configList.GetItemCount() > 0 && len(newFolderPath) > 1 {
-					configList.SetCurrentItem(1)
-				} else {
-					configList.SetCurrentItem(0)
-				}
-				//if !infos[0].isBack || (infos[0].isBack && !infos[0].folder) {
-				//	configList.SetCurrentItem(0)
-				//}
-			})
-		}
 	}
-	configList.SetCurrentItem(pos)
+
+	if oldPosition >= count {
+		oldPosition = count - 1
+	}
+
+	if oldPosition < 0 {
+		oldPosition = 0
+	}
+	a.ConfigList.SetCurrentItem(oldPosition)
 }
 
-func ConfigPathExists() {
-	_, err := os.Stat(filepath.FromSlash(path))
-	if err != nil {
-		log.Fatal(err)
+func (a *App) OpenItem(index int) {
+	if index < 0 || index >= len(a.Items) {
+		return
 	}
-	_, err = os.Stat(filepath.FromSlash(path + "/configs"))
-	if err != nil {
-		errors := os.MkdirAll(filepath.FromSlash(path+"/configs"), 0755)
-		if errors != nil {
-			log.Fatal(errors)
-		}
-		bytesRead, err := os.ReadFile(filepath.FromSlash(path + "/config"))
+	item := &a.Items[index]
+	if item.IsBack {
+		a.GoBack()
+		return
+	}
+
+	if item.IsDir {
+		previousFolder := a.CurrentFolder
+		a.CurrentFolder = filepath.Join(a.CurrentFolder, item.Name)
+		err := a.LoadConfigs()
 		if err != nil {
-			log.Fatal(err)
+			a.CurrentFolder = previousFolder
+			a.InfoData.SetText("[red]" + err.Error() + "[::-]")
+			return
 		}
-		err = os.WriteFile(filepath.FromSlash(path+"/configs/config"), bytesRead, 0644)
+		a.RefreshConfigList()
+		if a.ConfigList.GetItemCount() > 1 {
+			a.ConfigList.SetCurrentItem(1)
+		}
+		go a.RefreshClusterInfo()
+		return
+	}
+	if item.IsConfig {
+		err := item.Apply(a.KubePath)
+
 		if err != nil {
-			log.Fatal(err)
+			item.ClusterData.Status = "[red]Apply failed: " + err.Error() + "[::-]"
+			a.InfoData.SetText(item.InfoText())
+			return
 		}
+		a.UI.Stop()
 	}
 }
-func imports(from string, to string) {
-	dir, err := os.Getwd()
-	if err != nil {
-		log.Fatal(err)
+
+func (a *App) GoBack() {
+	if a.CurrentFolder == "" {
+		return
 	}
-	iPath := (dir + filepath.FromSlash("/"+from))
-	nPath := (kubePath() + filepath.FromSlash("/configs/"+to))
-	println(iPath)
-	println(nPath)
-	os.Exit(0)
+
+	parent := filepath.Dir(a.CurrentFolder)
+	if parent == "." {
+		parent = ""
+	}
+
+	previousFolder := a.CurrentFolder
+	a.CurrentFolder = parent
+	err := a.LoadConfigs()
+
+	if err != nil {
+		a.CurrentFolder = previousFolder
+		a.InfoData.SetText("[red]" + err.Error() + "[::-]")
+		return
+	}
+
+	a.RefreshConfigList()
+	if a.ConfigList.GetItemCount() > 0 {
+		a.ConfigList.SetCurrentItem(0)
+	}
+	go a.RefreshClusterInfo()
+}
+
+func (a *App) RefreshClusterInfo() {
+	folder := a.CurrentFolder
+	items := make([]Item, len(a.Items))
+	copy(items, a.Items)
+	for index := range items {
+
+		if !items[index].IsConfig {
+			continue
+		}
+		_ = items[index].RefreshClusterInfo()
+	}
+
+	a.UI.QueueUpdateDraw(func() {
+		if folder != a.CurrentFolder {
+			return
+		}
+
+		current := a.ConfigList.GetCurrentItem()
+		a.Items = items
+		a.RefreshConfigList()
+		if current >= 0 && current < len(a.Items) {
+			a.ConfigList.SetCurrentItem(current)
+			a.InfoData.SetText(a.Items[current].InfoText())
+		}
+	})
+}
+
+func (a *App) EnsureConfigPath() error {
+	if _, err := os.Stat(a.KubePath); err != nil {
+		return err
+	}
+	configsPath := filepath.Join(a.KubePath, "configs")
+	if _, err := os.Stat(configsPath); err == nil {
+		return nil
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+
+	err := os.MkdirAll(configsPath, 0755)
+
+	if err != nil {
+		return err
+	}
+
+	currentConfig := filepath.Join(a.KubePath, "config")
+	data, err := os.ReadFile(currentConfig)
+	if err != nil {
+		return err
+	}
+
+	firstConfig := filepath.Join(configsPath, "config")
+	err = os.WriteFile(firstConfig, data, 0644)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (a *App) Import(from string, to string) error {
+	source := from
+
+	if !filepath.IsAbs(source) {
+		dir, err := os.Getwd()
+		if err != nil {
+			return err
+		}
+		source = filepath.Join(dir, source)
+	}
+
+	var testItem Item
+	err := testItem.Load(source)
+	if err != nil {
+		return fmt.Errorf("invalid kubeconfig: %w", err)
+	}
+
+	if !testItem.IsConfig {
+		return fmt.Errorf("%s is not a config file", source)
+	}
+
+	destination := filepath.Join(a.KubePath, "configs", to)
+	err = os.MkdirAll(filepath.Dir(destination), 0755)
+	if err != nil {
+		return err
+	}
+	file, err := os.ReadFile(source)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(destination, file, 0644)
 }
 
 func help() {
-	println("KCC usage:")
-	println("version ......... prints version")
-	println("i or import ..... import new config")
-	println("")
-	os.Exit(0)
+	fmt.Println("KCC usage:")
+	fmt.Println("version ........ prints version")
+	fmt.Println("i/import ....... import new config")
+	fmt.Println("help/h .......... show help")
+}
+
+func (a *App) HandleArgs(args []string) (bool, error) {
+	if len(args) == 0 {
+		return false, nil
+	}
+
+	switch args[0] {
+
+	case "version":
+		fmt.Println("Version: " + cmd.version())
+		return true, nil
+
+	case "help", "h":
+		help()
+		return true, nil
+
+	case "import", "i":
+		if len(args) != 3 {
+			return true, fmt.Errorf("usage: kcc import <from> <to>")
+		}
+		err := a.Import(args[1], args[2])
+		if err != nil {
+			return true, err
+		}
+		fmt.Println("Config imported")
+		return true, nil
+
+	default:
+		return true, fmt.Errorf("unknown command: %s", args[0])
+	}
+}
+
+func (a *App) Run() error {
+	if err := a.EnsureConfigPath(); err != nil {
+		return err
+	}
+
+	if err := a.LoadConfigs(); err != nil {
+		return err
+	}
+
+	a.ConfigList.SetBorder(true).SetTitle("Configuration")
+	a.InfoData.SetDynamicColors(true).SetBorder(true).SetTitle("Info").SetTitleAlign(tview.AlignCenter)
+	a.ConfigList.SetChangedFunc(func(index int, mainText string, secondaryText string, shortcut rune) {
+		if index < 0 || index >= len(a.Items) {
+			return
+		}
+		a.InfoData.SetText(a.Items[index].InfoText())
+	})
+
+	a.RefreshConfigList()
+	go a.RefreshClusterInfo()
+
+	a.UI.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyF5:
+			for index := range a.Items {
+				if a.Items[index].IsConfig {
+					a.Items[index].ClusterData.Status = "[yellow]Getting info from cluster....[::-]"
+				}
+			}
+			current := a.ConfigList.GetCurrentItem()
+			if current >= 0 && current < len(a.Items) {
+				a.InfoData.SetText(a.Items[current].InfoText())
+			}
+			go a.RefreshClusterInfo()
+		case tcell.KeyBackspace, tcell.KeyEsc:
+			a.GoBack()
+		}
+		return event
+	})
+	return a.UI.SetRoot(a.Grid, true).Run()
 }
 
 func main() {
-	for i, arg := range os.Args {
-		if i == 0 {
-			continue
-		}
-		switch arg {
-		case "version":
-			println("Version: 0.7.0beta")
-			os.Exit(0)
-		case "help":
-			help()
-		case "h":
-			help()
-		case "i":
-			imports(os.Args[i+1], os.Args[i+2])
-		case "import":
-			imports(os.Args[i+1], os.Args[i+2])
-		default:
-			println("error")
-			help()
-			os.Exit(0)
-		}
+	app := NewApp()
+
+	handled, err := app.HandleArgs(os.Args[1:])
+	if err != nil {
+		log.Fatal(err)
 	}
-	ConfigPathExists()
-	loadConfigs()
-	go GetInfo()
-
-	configList.SetBorder(true).SetTitle("Configuration")
-	infoData.SetDynamicColors(true)
-	configList.SetChangedFunc(func(index int, mainText string, secondaryText string, shortcut rune) {
-		infoData.SetText(InfoDataDisplay(infos[index]))
-	})
-
-	infoData.SetBorder(true).SetTitle("Info").SetTitleAlign(tview.AlignCenter)
-
-	refreshConfigs()
-	app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyF5 {
-			for i := range infos {
-				infos[i].status = "[yellow]Getting info from cluster....[::-]"
-			}
-			go GetInfo()
-			refreshConfigs()
-		} else if event.Key() == tcell.KeyBackspace || event.Key() == tcell.KeyEsc {
-			if len(newFolderPath) > 1 {
-				newFolderPath = newFolderPath[0 : strings.LastIndex(newFolderPath[0:len(newFolderPath)-1], filepath.FromSlash("/"))+1]
-				if len(PrevFolder) > 1 {
-					PrevFolder = PrevFolder[:len(PrevFolder)-1]
-				}
-				configs = nil
-				infos = nil
-				config = nil
-				loadConfigs()
-				go GetInfo()
-				refreshConfigs()
-				if configList.GetItemCount() > 0 && len(newFolderPath) > 1 {
-					configList.SetCurrentItem(1)
-				} else {
-					configList.SetCurrentItem(0)
-				}
-			}
-		} //else if (tcell.ModShift != 0 && event.Rune() == ':') // search bar
-		return event
-	})
-	if err := app.SetRoot(grid, true).Run(); err != nil {
-		panic(err)
+	if handled {
+		return
+	}
+	if err := app.Run(); err != nil {
+		log.Fatal(err)
 	}
 }
