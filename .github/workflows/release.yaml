@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  build-and-prerelease:
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -186,7 +186,8 @@ jobs:
           build_deb() {
             BINARY="$1"
             ARCH="$2"
-
+            
+            DEB_VERSION="${PKG_VERSION/-/~}"
             PACKAGE_DIR="pkg-deb-${ARCH}"
 
             echo ""
@@ -207,7 +208,7 @@ jobs:
 
             cat > "${PACKAGE_DIR}/DEBIAN/control" <<EOF
           Package: kcc-k8s
-          Version: ${PKG_VERSION}
+          Version: ${DEB_VERSION}
           Section: utils
           Priority: optional
           Architecture: ${ARCH}
@@ -452,24 +453,7 @@ jobs:
             "dist/kcc-k8s_${PKG_VERSION}_nix-flake.tar.gz" \
             .
 
-      # ============================================================
-      # Checksums
-      # ============================================================
 
-      - name: Generate SHA256 checksums
-        run: |
-          cd dist
-
-          sha256sum \
-            kcc.linux.* \
-            kcc.windows.* \
-            kcc.mac.* \
-            *.deb \
-            *.pkg.tar.zst \
-            *_nix-flake.tar.gz \
-            > SHA256SUMS
-
-          cat SHA256SUMS
 
       # ============================================================
       # Display output
@@ -498,9 +482,34 @@ jobs:
 
           ls -1 dist/*.pkg.tar.zst
 
+      - name: Upload release files
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-files
+          path: |
+            dist/kcc.linux.amd64
+            dist/kcc.linux.arm64
+            dist/kcc.linux.armv5
+            dist/kcc.linux.armv6
+            dist/kcc.linux.armv7
+
+            dist/kcc.mac.arm64
+            dist/kcc.mac.amd64
+            
+            dist/kcc.windows.amd64.exe
+            dist/kcc.windows.arm64.exe
+            
+            dist/kcc.freebsd.386
+            dist/kcc.freebsd.amd64
+            dist/kcc.freebsd.armv7
+            dist/kcc.freebsd.arm64
+
+            dist/*.deb
+            dist/*.pkg.tar.zst
+            dist/*_nix-flake.tar.gz
 
   build-windows-installers:
-    needs: build-and-prerelease
+    needs: build
     runs-on: windows-latest
 
     permissions:
@@ -554,14 +563,56 @@ jobs:
         shell: pwsh
         run: |
           Get-ChildItem dist
-
-      - name: Upload MSI installers to release
-        uses: softprops/action-gh-release@v2
+      - name: Upload release files
+        uses: actions/upload-artifact@v4
         with:
-          tag_name: ${{ github.ref_name }}
-          files: |
-            dist/*.msi
+          name: release-files-windows
+          path: |
+            dist/kcc-k8s_installer_windows_x64.msi
+            dist/kcc-k8s_installer_windows_arm64.msi
 
+  release:
+    runs-on: ubuntu-latest
+    needs:
+      - build
+      - build-windows-installers
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Extract version from tag
+        run: |
+          echo "VERSION=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
+          echo "PKG_VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+      - name: Download files
+        uses: actions/download-artifact@v4
+        with:
+          name: release-files
+          path: dist
+      - name: Download files
+        uses: actions/download-artifact@v4
+        with:
+          name: release-files-windows
+          path: dist
+      # ============================================================
+      # Checksums
+      # ============================================================
+
+      - name: Generate SHA256 checksums
+        run: |
+          cd dist
+
+          sha256sum \
+            kcc.linux.* \
+            kcc.freebsd.* \
+            kcc.windows.* \
+            kcc.mac.* \
+            *.deb \
+            *.pkg.tar.zst \
+            *_nix-flake.tar.gz \
+            *.msi \
+            > SHA256SUMS
+
+          cat SHA256SUMS
 
       - name: Create GitHub Draft Release
         uses: softprops/action-gh-release@v2
@@ -579,18 +630,18 @@ jobs:
             dist/kcc.linux.armv7
 
             dist/kcc.windows.amd64.exe
-            dist/kcc-k8s_installer_windows_x64.msi
+            dist/*_x64.msi
             
             dist/kcc.windows.arm64.exe
-            dist/kcc-k8s_installer_windows_arm64.msi
+            dist/*_arm64.msi
 
             dist/kcc.mac.arm64
             dist/kcc.mac.amd64
             
-            kcc.freebsd.386
-            kcc.freebsd.amd64
-            kcc.freebsd.armv7
-            kcc.freebsd.arm64
+            dist/kcc.freebsd.386
+            dist/kcc.freebsd.amd64
+            dist/kcc.freebsd.armv7
+            dist/kcc.freebsd.arm64
 
             dist/*.deb
             dist/*.pkg.tar.zst
