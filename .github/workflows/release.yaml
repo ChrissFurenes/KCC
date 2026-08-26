@@ -529,7 +529,7 @@ jobs:
       - name: Build x64 MSI
         shell: pwsh
         run: |
-          wix build `
+          wix build -acceptEula wix7 `
             packaging/windows/kcc.wxs `
             -arch x64 `
             -d Version=$env:PKG_VERSION `
@@ -539,7 +539,7 @@ jobs:
       - name: Build ARM64 MSI
         shell: pwsh
         run: |
-          wix build `
+          wix build -acceptEula wix7 `
             packaging/windows/kcc.wxs `
             -arch arm64 `
             -d Version=$env:PKG_VERSION `
