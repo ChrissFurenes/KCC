@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+
+    <Package
+        Name="KCC"
+        Manufacturer="Chriss Furenes"
+        Version="$(Version)"
+        UpgradeCode="{3C736C01-5696-4B8E-AE6B-30E761941AD1}"
+        Scope="perMachine">
+
+        <MajorUpgrade
+            DowngradeErrorMessage="A newer version of KCC is already installed." />
+
+        <MediaTemplate EmbedCab="yes" />
+
+        <StandardDirectory Id="ProgramFiles6432Folder">
+
+            <Directory
+                Id="INSTALLFOLDER"
+                Name="KCC">
+
+                <Component
+                    Id="KccComponent"
+                    Guid="*">
+
+                    <File
+                        Id="KccExe"
+                        Source="$(BinarySource)"
+                        Name="kcc.exe"
+                        KeyPath="yes" />
+
+                    <Environment
+                        Id="KccPath"
+                        Name="PATH"
+                        Value="[INSTALLFOLDER]"
+                        Action="set"
+                        Part="last"
+                        System="yes" />
+
+                </Component>
+
+            </Directory>
+
+        </StandardDirectory>
+
+        <Feature
+            Id="MainFeature"
+            Title="KCC"
+            Level="1">
+
+            <ComponentRef Id="KccComponent" />
+
+        </Feature>
+
+    </Package>
+
+</Wix>
