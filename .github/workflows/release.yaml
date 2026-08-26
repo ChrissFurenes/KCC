@@ -254,6 +254,10 @@ jobs:
 
       - name: Build pacman packages
         run: |
+          PACMAN_VERSION="${PKG_VERSION//-/_}"
+
+          echo "Git version:    ${PKG_VERSION}"
+          echo "Pacman version: ${PACMAN_VERSION}"
           build_pacman() {
             BINARY="$1"
             ARCH="$2"
@@ -276,7 +280,7 @@ jobs:
 
             cat > "${PACKAGE_DIR}/PKGBUILD" <<EOF
           pkgname=kcc-k8s
-          pkgver=${PKG_VERSION}
+          pkgver=${PACMAN_VERSION}
           pkgrel=1
           pkgdesc="Kubernetes Config Changer"
           arch=('${ARCH}')

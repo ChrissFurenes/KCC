@@ -7,7 +7,7 @@ import (
 	"github.com/chrissfurenes/kcc/app"
 )
 
-var version = "0.8.1-beta.4"
+var version = "0.8.1-beta.5"
 
 func main() {
 	app := app.NewApp(version)
