@@ -20,173 +20,568 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: "1.27.0"
+          cache: true
 
-      - name: Extrakt version from tag
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+      - name: Extract version from tag
+        run: |
+          echo "VERSION=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
+          echo "PKG_VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
 
-      - name: Build binaries Linux
+      # ============================================================
+      # Linux
+      # ============================================================
+
+      - name: Build Linux binaries
         run: |
           mkdir -p dist
+
           echo "Building version: $VERSION"
 
-          # Linux amd64
-          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
-            go build -trimpath -ldflags "-s -w -X main.version=$VERSION" \
+          GOOS=linux \
+          GOARCH=amd64 \
+          CGO_ENABLED=0 \
+            go build \
+            -trimpath \
+            -ldflags "-s -w -X main.version=$VERSION" \
             -o "dist/kcc.linux.amd64" .
 
-          # Linux arm64
-          GOOS=linux GOARCH=arm64 CGO_ENABLED=0 \
-            go build -trimpath -ldflags "-s -w -X main.version=$VERSION" \
+          GOOS=linux \
+          GOARCH=arm64 \
+          CGO_ENABLED=0 \
+            go build \
+            -trimpath \
+            -ldflags "-s -w -X main.version=$VERSION" \
             -o "dist/kcc.linux.arm64" .
 
-      - name: Build binaries Windows
-        run: |
-          # Windows amd64
-          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 \
-            go build -trimpath -ldflags "-s -w -X main.version=$VERSION" \
-            -o "dist/kcc.windows.amd64.exe" .
-          
-          # Windows arm64
-          GOOS=windows GOARCH=arm64 CGO_ENABLED=0 \
-            go build -trimpath -ldflags "-s -w -X main.version=$VERSION" \
-            -o "dist/kcc.windows.arm64.exe" .
+          GOOS=linux \
+          GOARCH=arm \
+          GOARM=5,softfloat \
+          CGO_ENABLED=0 \
+            go build \
+            -trimpath \
+            -ldflags "-s -w -X main.version=$VERSION" \
+            -o "dist/kcc.linux.armv5" .
 
-      - name: Build binaries MAC
-        run: |          
-          #macos arm64
-          GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 \
-            go build -trimpath -ldflags "-s -w -X main.version=$VERSION" \
-            -o "dist/kcc.mac.arm64" .
+          GOOS=linux \
+          GOARCH=arm \
+          GOARM=6,hardfloat \
+          CGO_ENABLED=0 \
+            go build \
+            -trimpath \
+            -ldflags "-s -w -X main.version=$VERSION" \
+            -o "dist/kcc.linux.armv6" .
 
-          #macos amd64
-          GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 \
-            go build -trimpath -ldflags "-s -w -X main.version=$VERSION" \
-            -o "dist/kcc.mac.amd64" .
+          GOOS=linux \
+          GOARCH=arm \
+          GOARM=7,hardfloat \
+          CGO_ENABLED=0 \
+            go build \
+            -trimpath \
+            -ldflags "-s -w -X main.version=$VERSION" \
+            -o "dist/kcc.linux.armv7" .
 
-      - name: Build Linux ARM binaries
+      # ============================================================
+      # FreeBSD
+      # ============================================================
+
+      - name: Build FreeBSD binaries
         run: |
           mkdir -p dist
           
-          # ARMv5 - 32-bit
-          GOOS=linux GOARCH=arm GOARM=5 CGO_ENABLED=0 \
-            go build -trimpath -ldflags "-s -w -X main.version=$VERSION" \
-            -o "dist/kcc.linux.armv5" .
+          # FreeBSD x86 32-bit
+          GOOS=freebsd GOARCH=386 CGO_ENABLED=0 \
+            go build -trimpath \
+            -ldflags "-s -w -X main.version=$VERSION" \
+            -o "dist/kcc.freebsd.386" .
           
-          # ARMv6 - 32-bit
-          GOOS=linux GOARCH=arm GOARM=6 CGO_ENABLED=0 \
-            go build -trimpath -ldflags "-s -w -X main.version=$VERSION" \
-            -o "dist/kcc.linux.armv6" .
+          # FreeBSD x86-64
+          GOOS=freebsd GOARCH=amd64 CGO_ENABLED=0 \
+            go build -trimpath \
+            -ldflags "-s -w -X main.version=$VERSION" \
+            -o "dist/kcc.freebsd.amd64" .
           
-          # ARMv7 - 32-bit
-          GOOS=linux GOARCH=arm GOARM=7 CGO_ENABLED=0 \
-            go build -trimpath -ldflags "-s -w -X main.version=$VERSION" \
-            -o "dist/kcc.linux.armv7" .
+          # FreeBSD ARM 32-bit
+          GOOS=freebsd GOARCH=arm GOARM=7 CGO_ENABLED=0 \
+            go build -trimpath \
+            -ldflags "-s -w -X main.version=$VERSION" \
+            -o "dist/kcc.freebsd.armv7" .
+          
+          # FreeBSD ARM64 / AArch64
+          GOOS=freebsd GOARCH=arm64 CGO_ENABLED=0 \
+            go build -trimpath \
+            -ldflags "-s -w -X main.version=$VERSION" \
+            -o "dist/kcc.freebsd.arm64" .
 
+      # ============================================================
+      # Windows
+      # ============================================================
 
-      - name: Build Debian packages amd64
+      - name: Build Windows binaries
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          
-          mkdir -p pkg-amd64/DEBIAN
-          mkdir -p pkg-amd64/usr/bin
-          
-          install -m 755 dist/kcc.linux.amd64 pkg-amd64/usr/bin/kcc
-          
-          cat > pkg-amd64/DEBIAN/control <<EOF
+          # AMD64
+          GOOS=windows \
+          GOARCH=amd64 \
+          CGO_ENABLED=0 \
+            go build \
+            -trimpath \
+            -ldflags "-s -w -X main.version=$VERSION" \
+            -o "dist/kcc.windows.amd64.exe" .
+
+          # ARM64
+          GOOS=windows \
+          GOARCH=arm64 \
+          CGO_ENABLED=0 \
+            go build \
+            -trimpath \
+            -ldflags "-s -w -X main.version=$VERSION" \
+            -o "dist/kcc.windows.arm64.exe" .
+
+      # ============================================================
+      # macOS
+      # ============================================================
+
+      - name: Build macOS binaries
+        run: |
+          # Apple Silicon
+          GOOS=darwin \
+          GOARCH=arm64 \
+          CGO_ENABLED=0 \
+            go build \
+            -trimpath \
+            -ldflags "-s -w -X main.version=$VERSION" \
+            -o "dist/kcc.mac.arm64" .
+
+          # Intel
+          GOOS=darwin \
+          GOARCH=amd64 \
+          CGO_ENABLED=0 \
+            go build \
+            -trimpath \
+            -ldflags "-s -w -X main.version=$VERSION" \
+            -o "dist/kcc.mac.amd64" .
+
+      # ============================================================
+      # Debian / Ubuntu packages
+      #
+      # Go              Debian
+      # --------------------------------
+      # amd64           amd64
+      # arm64           arm64
+      # armv5           armel
+      # armv7           armhf
+      #
+      # armv6 is covered by the more compatible armel package.
+      # ============================================================
+
+      - name: Build Debian packages
+        run: |
+          build_deb() {
+            BINARY="$1"
+            ARCH="$2"
+
+            PACKAGE_DIR="pkg-deb-${ARCH}"
+
+            echo ""
+            echo "========================================"
+            echo "Building Debian package: ${ARCH}"
+            echo "Binary: ${BINARY}"
+            echo "========================================"
+
+            rm -rf "$PACKAGE_DIR"
+
+            mkdir -p "${PACKAGE_DIR}/DEBIAN"
+            mkdir -p "${PACKAGE_DIR}/usr/bin"
+
+            install \
+              -m 755 \
+              "$BINARY" \
+              "${PACKAGE_DIR}/usr/bin/kcc"
+
+            cat > "${PACKAGE_DIR}/DEBIAN/control" <<EOF
           Package: kcc-k8s
-          Version: ${VERSION}
+          Version: ${PKG_VERSION}
           Section: utils
           Priority: optional
-          Architecture: amd64
+          Architecture: ${ARCH}
           Maintainer: Chriss Furenes
           Homepage: https://github.com/chrissfurenes/kcc
           Description: Kubernetes Config Changer
            Tool for managing and switching Kubernetes kubeconfigs.
           EOF
-          
-          dpkg-deb --root-owner-group \
-            --build pkg-amd64 \
-            "dist/kcc-k8s_${VERSION}_amd64.deb"
 
-      - name: Build Debian packages arm64
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          
-          mkdir -p pkg-arm64/DEBIAN
-          mkdir -p pkg-arm64/usr/bin
-          
-          install -m 755 dist/kcc.linux.arm64 pkg-arm64/usr/bin/kcc
-          
-          cat > pkg-arm64/DEBIAN/control <<EOF
-          Package: kcc-k8s
-          Version: ${VERSION}
-          Section: utils
-          Priority: optional
-          Architecture: arm64
-          Maintainer: Chriss Furenes
-          Homepage: https://github.com/chrissfurenes/kcc
-          Description: Kubernetes Config Changer
-           Tool for managing and switching Kubernetes kubeconfigs.
-          EOF
-          
-          dpkg-deb --root-owner-group \
-            --build pkg-arm64 \
-            "dist/kcc-k8s_${VERSION}_arm64.deb"
+            dpkg-deb \
+              --root-owner-group \
+              --build \
+              "$PACKAGE_DIR" \
+              "dist/kcc-k8s_${PKG_VERSION}_${ARCH}.deb"
+          }
 
-      - name: Build pacman package x86_64
+          build_deb \
+            "dist/kcc.linux.amd64" \
+            "amd64"
+
+          build_deb \
+            "dist/kcc.linux.arm64" \
+            "arm64"
+
+          build_deb \
+            "dist/kcc.linux.armv5" \
+            "armel"
+
+          build_deb \
+            "dist/kcc.linux.armv7" \
+            "armhf"
+
+      # ============================================================
+      # Pacman packages
+      #
+      # Go              Pacman
+      # --------------------------------
+      # amd64           x86_64
+      # arm64           aarch64
+      # armv7           armv7h
+      #
+      # Current Arch Linux ARM does not support ARMv5/ARMv6.
+      # ============================================================
+
+      - name: Build pacman packages
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          
-          mkdir -p arch-package
-          
-          cp dist/kcc.linux.amd64 arch-package/kcc
-          
-          cat > arch-package/PKGBUILD <<EOF
+          build_pacman() {
+            BINARY="$1"
+            ARCH="$2"
+            CHOST="$3"
+
+            PACKAGE_DIR="pkg-pacman-${ARCH}"
+
+            echo ""
+            echo "========================================"
+            echo "Building pacman package: ${ARCH}"
+            echo "Binary: ${BINARY}"
+            echo "========================================"
+
+            rm -rf "$PACKAGE_DIR"
+            mkdir -p "$PACKAGE_DIR"
+
+            cp "$BINARY" "${PACKAGE_DIR}/kcc"
+
+            chmod 755 "${PACKAGE_DIR}/kcc"
+
+            cat > "${PACKAGE_DIR}/PKGBUILD" <<EOF
           pkgname=kcc-k8s
-          pkgver=${VERSION}
+          pkgver=${PKG_VERSION}
           pkgrel=1
           pkgdesc="Kubernetes Config Changer"
-          arch=('x86_64')
+          arch=('${ARCH}')
           url="https://github.com/chrissfurenes/kcc"
           license=('MIT')
-          
+
+          source=('kcc')
+          sha256sums=('SKIP')
+
+          options=('!strip')
+
           package() {
               install -Dm755 "\$srcdir/kcc" "\$pkgdir/usr/bin/kcc"
           }
           EOF
-          
-          chmod -R 777 arch-package
-          
-          docker run --rm \
-            -v "$PWD/arch-package:/build" \
-            -w /build \
-            archlinux:base-devel \
-            bash -c '
-              useradd -m builder
-              chown -R builder:builder /build
-              su builder -c "makepkg --nodeps --noconfirm"
-            '
-          
-          cp arch-package/*.pkg.tar.zst dist/
+
+            chmod -R a+rwX "$PACKAGE_DIR"
+
+            docker run \
+              --rm \
+              -e TARGET_ARCH="$ARCH" \
+              -e TARGET_CHOST="$CHOST" \
+              -v "$PWD/${PACKAGE_DIR}:/build" \
+              -w /build \
+              archlinux:base-devel \
+              bash -lc '
+                set -e
+
+                echo "CARCH=${TARGET_ARCH}"
+                echo "CHOST=${TARGET_CHOST}"
+
+                sed -i \
+                  "s/^CARCH=.*/CARCH=\"${TARGET_ARCH}\"/" \
+                  /etc/makepkg.conf
+
+                sed -i \
+                  "s/^CHOST=.*/CHOST=\"${TARGET_CHOST}\"/" \
+                  /etc/makepkg.conf
+
+                useradd -m builder
+
+                chown -R builder:builder /build
+
+                su builder -c \
+                  "makepkg --nodeps --noconfirm --clean"
+              '
+
+            cp \
+              "${PACKAGE_DIR}"/*.pkg.tar.zst \
+              dist/
+          }
+
+          build_pacman \
+            "dist/kcc.linux.amd64" \
+            "x86_64" \
+            "x86_64-pc-linux-gnu"
+
+          build_pacman \
+            "dist/kcc.linux.arm64" \
+            "aarch64" \
+            "aarch64-unknown-linux-gnu"
+
+          build_pacman \
+            "dist/kcc.linux.armv7" \
+            "armv7h" \
+            "armv7l-unknown-linux-gnueabihf"
+
+      # ============================================================
+      # Nix flake bundle
+      #
+      # Creates one bundle containing all Linux binaries.
+      #
+      # Systems:
+      #   amd64 -> x86_64-linux
+      #   arm64 -> aarch64-linux
+      #   armv5 -> armv5tel-linux
+      #   armv6 -> armv6l-linux
+      #   armv7 -> armv7l-linux
+      # ============================================================
+
+      - name: Build Nix flake bundle
+        run: |
+          rm -rf nix-package
+
+          mkdir -p nix-package/bin
+
+          cp \
+            dist/kcc.linux.amd64 \
+            nix-package/bin/
+
+          cp \
+            dist/kcc.linux.arm64 \
+            nix-package/bin/
+
+          cp \
+            dist/kcc.linux.armv5 \
+            nix-package/bin/
+
+          cp \
+            dist/kcc.linux.armv6 \
+            nix-package/bin/
+
+          cp \
+            dist/kcc.linux.armv7 \
+            nix-package/bin/
+
+          cat > nix-package/flake.nix <<EOF
+          {
+            description = "Kubernetes Config Changer";
+
+            inputs = {
+              nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+            };
+
+            outputs = { self, nixpkgs }:
+              let
+
+                version = "${PKG_VERSION}";
+
+                mkPackage = system: binary:
+                  let
+                    pkgs = import nixpkgs {
+                      inherit system;
+                    };
+                  in
+                  pkgs.runCommandNoCC "kcc-k8s-\${version}" { } ''
+                    mkdir -p \$out/bin
+
+                    install \
+                      -Dm755 \
+                      \${binary} \
+                      \$out/bin/kcc
+                  '';
+
+              in
+              {
+
+                packages.x86_64-linux.default =
+                  mkPackage
+                    "x86_64-linux"
+                    ./bin/kcc.linux.amd64;
+
+                packages.aarch64-linux.default =
+                  mkPackage
+                    "aarch64-linux"
+                    ./bin/kcc.linux.arm64;
+
+                packages.armv5tel-linux.default =
+                  mkPackage
+                    "armv5tel-linux"
+                    ./bin/kcc.linux.armv5;
+
+                packages.armv6l-linux.default =
+                  mkPackage
+                    "armv6l-linux"
+                    ./bin/kcc.linux.armv6;
+
+                packages.armv7l-linux.default =
+                  mkPackage
+                    "armv7l-linux"
+                    ./bin/kcc.linux.armv7;
+              };
+          }
+          EOF
+
+          tar \
+            -C nix-package \
+            -czf \
+            "dist/kcc-k8s_${PKG_VERSION}_nix-flake.tar.gz" \
+            .
+
+      # ============================================================
+      # Checksums
+      # ============================================================
+
+      - name: Generate SHA256 checksums
+        run: |
+          cd dist
+
+          sha256sum \
+            kcc.linux.* \
+            kcc.windows.* \
+            kcc.mac.* \
+            *.deb \
+            *.pkg.tar.zst \
+            *_nix-flake.tar.gz \
+            > SHA256SUMS
+
+          cat SHA256SUMS
+
+      # ============================================================
+      # Display output
+      # ============================================================
+
+      - name: Show release files
+        run: |
+          echo ""
+          echo "========================================"
+          echo "Release files"
+          echo "========================================"
+
+          ls -lah dist/
+
+          echo ""
+          echo "========================================"
+          echo "Debian packages"
+          echo "========================================"
+
+          ls -1 dist/*.deb
+
+          echo ""
+          echo "========================================"
+          echo "Pacman packages"
+          echo "========================================"
+
+          ls -1 dist/*.pkg.tar.zst
 
 
-      - name: Create GitHub Draft-release + upload assets
+  build-windows-installers:
+    needs: build-and-prerelease
+    runs-on: windows-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Windows binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-binaries
+          path: dist
+
+      - name: Extract version
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}"
+          $pkgVersion = $version.TrimStart("v")
+
+          "VERSION=$version" >> $env:GITHUB_ENV
+          "PKG_VERSION=$pkgVersion" >> $env:GITHUB_ENV
+
+      - name: Install WiX Toolset
+        shell: pwsh
+        run: |
+          dotnet tool install --global wix --version 7.0.0
+
+      - name: Build x64 MSI
+        shell: pwsh
+        run: |
+          wix build `
+            packaging/windows/kcc.wxs `
+            -arch x64 `
+            -d Version=$env:PKG_VERSION `
+            -d BinarySource="$PWD/dist/kcc.windows.amd64.exe" `
+            -o "dist/kcc-k8s_installer_windows_x64.msi"
+
+      - name: Build ARM64 MSI
+        shell: pwsh
+        run: |
+          wix build `
+            packaging/windows/kcc.wxs `
+            -arch arm64 `
+            -d Version=$env:PKG_VERSION `
+            -d BinarySource="$PWD/dist/kcc.windows.arm64.exe" `
+            -o "dist/kcc-k8s_installer_windows_arm64.msi"
+
+      - name: Show installers
+        shell: pwsh
+        run: |
+          Get-ChildItem dist
+
+      - name: Upload MSI installers to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: |
+            dist/*.msi
+
+
+      - name: Create GitHub Draft Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.VERSION }}
           name: ${{ env.VERSION }}
           draft: true
           generate_release_notes: true
+
           files: |
             dist/kcc.linux.amd64
             dist/kcc.linux.arm64
             dist/kcc.linux.armv5
             dist/kcc.linux.armv6
             dist/kcc.linux.armv7
+
             dist/kcc.windows.amd64.exe
+            dist/kcc-k8s_installer_windows_x64.msi
+            
             dist/kcc.windows.arm64.exe
+            dist/kcc-k8s_installer_windows_arm64.msi
+
             dist/kcc.mac.arm64
             dist/kcc.mac.amd64
-            dist/kcc-k8s_*_amd64.deb
-            dist/kcc-k8s_*_arm64.deb
-            dist/kcc-k8s-*.pkg.tar.zst
+            
+            kcc.freebsd.386
+            kcc.freebsd.amd64
+            kcc.freebsd.armv7
+            kcc.freebsd.arm64
+
+            dist/*.deb
+            dist/*.pkg.tar.zst
+            dist/*_nix-flake.tar.gz
+
+            dist/SHA256SUMS
