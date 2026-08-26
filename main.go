@@ -7,8 +7,10 @@ import (
 	"github.com/chrissfurenes/kcc/app"
 )
 
+var version = "0.8.0"
+
 func main() {
-	app := app.NewApp()
+	app := app.NewApp(version)
 
 	handled, err := app.HandleArgs(os.Args[1:])
 	if err != nil {

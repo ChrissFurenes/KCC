@@ -19,7 +19,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.26.2"
+          go-version: "1.27.0"
 
       - name: Extrakt version from tag
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
@@ -56,12 +56,119 @@ jobs:
           #macos arm64
           GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 \
             go build -trimpath -ldflags "-s -w -X main.version=$VERSION" \
-            -o "dist/kc.mac.arm64" .
+            -o "dist/kcc.mac.arm64" .
 
           #macos amd64
           GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 \
             go build -trimpath -ldflags "-s -w -X main.version=$VERSION" \
-            -o "dist/kc.mac.amd64" .
+            -o "dist/kcc.mac.amd64" .
+
+      - name: Build Linux ARM binaries
+        run: |
+          mkdir -p dist
+          
+          # ARMv5 - 32-bit
+          GOOS=linux GOARCH=arm GOARM=5 CGO_ENABLED=0 \
+            go build -trimpath -ldflags "-s -w -X main.version=$VERSION" \
+            -o "dist/kcc.linux.armv5" .
+          
+          # ARMv6 - 32-bit
+          GOOS=linux GOARCH=arm GOARM=6 CGO_ENABLED=0 \
+            go build -trimpath -ldflags "-s -w -X main.version=$VERSION" \
+            -o "dist/kcc.linux.armv6" .
+          
+          # ARMv7 - 32-bit
+          GOOS=linux GOARCH=arm GOARM=7 CGO_ENABLED=0 \
+            go build -trimpath -ldflags "-s -w -X main.version=$VERSION" \
+            -o "dist/kcc.linux.armv7" .
+
+
+      - name: Build Debian packages amd64
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          
+          mkdir -p pkg-amd64/DEBIAN
+          mkdir -p pkg-amd64/usr/bin
+          
+          install -m 755 dist/kcc.linux.amd64 pkg-amd64/usr/bin/kcc
+          
+          cat > pkg-amd64/DEBIAN/control <<EOF
+          Package: kcc-k8s
+          Version: ${VERSION}
+          Section: utils
+          Priority: optional
+          Architecture: amd64
+          Maintainer: Chriss Furenes
+          Homepage: https://github.com/chrissfurenes/kcc
+          Description: Kubernetes Config Changer
+           Tool for managing and switching Kubernetes kubeconfigs.
+          EOF
+          
+          dpkg-deb --root-owner-group \
+            --build pkg-amd64 \
+            "dist/kcc-k8s_${VERSION}_amd64.deb"
+
+      - name: Build Debian packages arm64
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          
+          mkdir -p pkg-arm64/DEBIAN
+          mkdir -p pkg-arm64/usr/bin
+          
+          install -m 755 dist/kcc.linux.arm64 pkg-arm64/usr/bin/kcc
+          
+          cat > pkg-arm64/DEBIAN/control <<EOF
+          Package: kcc-k8s
+          Version: ${VERSION}
+          Section: utils
+          Priority: optional
+          Architecture: arm64
+          Maintainer: Chriss Furenes
+          Homepage: https://github.com/chrissfurenes/kcc
+          Description: Kubernetes Config Changer
+           Tool for managing and switching Kubernetes kubeconfigs.
+          EOF
+          
+          dpkg-deb --root-owner-group \
+            --build pkg-arm64 \
+            "dist/kcc-k8s_${VERSION}_arm64.deb"
+
+      - name: Build pacman package x86_64
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          
+          mkdir -p arch-package
+          
+          cp dist/kcc.linux.amd64 arch-package/kcc
+          
+          cat > arch-package/PKGBUILD <<EOF
+          pkgname=kcc-k8s
+          pkgver=${VERSION}
+          pkgrel=1
+          pkgdesc="Kubernetes Config Changer"
+          arch=('x86_64')
+          url="https://github.com/chrissfurenes/kcc"
+          license=('MIT')
+          
+          package() {
+              install -Dm755 "\$srcdir/kcc" "\$pkgdir/usr/bin/kcc"
+          }
+          EOF
+          
+          chmod -R 777 arch-package
+          
+          docker run --rm \
+            -v "$PWD/arch-package:/build" \
+            -w /build \
+            archlinux:base-devel \
+            bash -c '
+              useradd -m builder
+              chown -R builder:builder /build
+              su builder -c "makepkg --nodeps --noconfirm"
+            '
+          
+          cp arch-package/*.pkg.tar.zst dist/
+
 
       - name: Create GitHub Draft-release + upload assets
         uses: softprops/action-gh-release@v2
@@ -73,7 +180,13 @@ jobs:
           files: |
             dist/kcc.linux.amd64
             dist/kcc.linux.arm64
+            dist/kcc.linux.armv5
+            dist/kcc.linux.armv6
+            dist/kcc.linux.armv7
             dist/kcc.windows.amd64.exe
             dist/kcc.windows.arm64.exe
-            dist/kc.mac.arm64
-            dist/kc.mac.amd64
+            dist/kcc.mac.arm64
+            dist/kcc.mac.amd64
+            dist/kcc-k8s_*_amd64.deb
+            dist/kcc-k8s_*_arm64.deb
+            dist/kcc-k8s-*.pkg.tar.zst

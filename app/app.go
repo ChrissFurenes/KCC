@@ -22,6 +22,7 @@ import (
 )
 
 type App struct {
+	version       string
 	Items         []Item
 	KubePath      string
 	CurrentFolder string
@@ -74,7 +75,7 @@ type ConfigInformation struct {
 	} `yaml:"contexts"`
 }
 
-func NewApp() *App {
+func NewApp(version string) *App {
 	a := &App{
 		KubePath:      cmd.KubePath(),
 		CurrentFolder: "",
@@ -82,6 +83,7 @@ func NewApp() *App {
 		ConfigList:    tview.NewList().ShowSecondaryText(false),
 		InfoData:      tview.NewTextView(),
 		CommandList:   tview.NewTextView().SetText("[F5] Refresh").SetTextAlign(tview.AlignCenter),
+		version:       version,
 	}
 	a.Grid = tview.NewGrid().
 		SetRows(-1, 25).
@@ -449,7 +451,7 @@ func (a *App) HandleArgs(args []string) (bool, error) {
 	switch args[0] {
 
 	case "version":
-		fmt.Println("Version: " + cmd.Version())
+		fmt.Println("Version: " + a.version)
 		return true, nil
 
 	case "help", "h":
