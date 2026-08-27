@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -25,6 +26,7 @@ type App struct {
 	version       string
 	Items         []Item
 	KubePath      string
+	TalosPath     string
 	CurrentFolder string
 	UI            *tview.Application
 	ConfigList    *tview.List
@@ -48,14 +50,15 @@ type Item struct {
 }
 
 type ClusterData struct {
-	User      string
-	Address   string
-	Port      string
-	Reachable bool
-	Nodes     int
-	Pods      int
-	Status    string
-	Test      string
+	User         string
+	Address      string
+	Port         string
+	Reachable    bool
+	Nodes        int
+	Pods         int
+	TalosVersion string
+	Status       string
+	Test         string
 }
 
 type ConfigInformation struct {
@@ -78,6 +81,7 @@ type ConfigInformation struct {
 func NewApp(version string) *App {
 	a := &App{
 		KubePath:      cmd.KubePath(),
+		TalosPath:     cmd.TalosPath(),
 		CurrentFolder: "",
 		UI:            tview.NewApplication(),
 		ConfigList:    tview.NewList().ShowSecondaryText(false),
@@ -97,6 +101,10 @@ func NewApp(version string) *App {
 
 func (a *App) ConfigDir() string {
 	return filepath.Join(a.KubePath, "configs", a.CurrentFolder)
+}
+
+func talosConfigPath(talosPath, fileName string) string {
+	return filepath.Join(talosPath, "configs", fileName)
 }
 
 func (i *Item) DisplayName() string {
@@ -143,6 +151,13 @@ func (a *App) GoBack() {
 	go a.RefreshClusterInfo()
 }
 
+func statusColorIcon(ok bool) (color, icon string) {
+	if ok {
+		return "[green]", "🟢"
+	}
+	return "[red]", "🔴"
+}
+
 func (i *Item) InfoText() string {
 
 	if i.IsBack {
@@ -166,21 +181,21 @@ func (i *Item) InfoText() string {
 	}
 
 	data := i.ClusterData
-	statusIcon := "🔴"
-	color := "[red]"
-	if data.Reachable {
-		statusIcon = "🟢"
-		color = "[green]"
-	}
+	color, statusIcon := statusColorIcon(data.Reachable)
+	talosColor, talosIcon := statusColorIcon(i.IsTalos)
 	information := "Name:.. " + i.Name +
 		"\n\nUser:.. " + data.User +
 		"\nIP:.... " + data.Address +
 		"\nPort:.. " + data.Port +
 		"\nPing:.. " + color + strings.ToUpper(strconv.FormatBool(data.Reachable)) + "[::-] [white]" + statusIcon +
+		"\nTalos:. " + talosColor + strings.ToUpper(strconv.FormatBool(i.IsTalos)) + "[::-] [white]" + talosIcon +
 		"\nPath:.. " + filepath.Base(i.Path)
 
 	if data.Reachable {
 		information += "\nNodes:. " + strconv.Itoa(data.Nodes) + "\nPods:.. " + strconv.Itoa(data.Pods)
+		if data.TalosVersion != "" {
+			information += "\nOS:.... " + data.TalosVersion
+		}
 	}
 	if data.Status != "" {
 		information += "\n\nStatus: " + data.Status
@@ -220,6 +235,9 @@ func (a *App) LoadConfigs() error {
 		}
 		if item.IsConfig {
 			item.IsActive = item.IsCurrent(a.KubePath)
+			if _, err := os.Stat(talosConfigPath(a.TalosPath, item.FileName)); err == nil {
+				item.IsTalos = true
+			}
 		}
 		a.Items = append(a.Items, item)
 	}
@@ -253,7 +271,7 @@ func (a *App) OpenItem(index int) {
 		return
 	}
 	if item.IsConfig {
-		err := item.Apply(a.KubePath)
+		err := item.Apply(a.KubePath, a.TalosPath)
 
 		if err != nil {
 			item.ClusterData.Status = "[red]Apply failed: " + err.Error() + "[::-]"
@@ -294,7 +312,7 @@ func (a *App) RefreshClusterInfo() {
 		if !items[index].IsConfig {
 			continue
 		}
-		_ = items[index].RefreshClusterInfo()
+		_ = items[index].RefreshClusterInfo(a.TalosPath)
 	}
 
 	a.UI.QueueUpdateDraw(func() {
@@ -312,7 +330,7 @@ func (a *App) RefreshClusterInfo() {
 	})
 }
 
-func (i *Item) Apply(kubePath string) error {
+func (i *Item) Apply(kubePath, talosPath string) error {
 	if !i.IsConfig {
 		return fmt.Errorf("%s is not a config", i.Name)
 	}
@@ -337,10 +355,17 @@ func (i *Item) Apply(kubePath string) error {
 	}
 	_ = os.Remove(backup)
 	i.IsActive = true
+
+	if i.IsTalos {
+		talosSource := talosConfigPath(talosPath, i.FileName)
+		talosDest := filepath.Join(talosPath, "config")
+		_ = os.Remove(talosDest)
+		_ = os.Link(talosSource, talosDest)
+	}
 	return nil
 }
 
-func (i *Item) RefreshClusterInfo() error {
+func (i *Item) RefreshClusterInfo(talosPath string) error {
 	if !i.IsConfig || i.IsDir || i.IsBack {
 		return nil
 	}
@@ -375,39 +400,61 @@ func (i *Item) RefreshClusterInfo() error {
 		return err
 	}
 	i.ClusterData.Pods = len(pods.Items)
+
+	if i.IsTalos {
+		i.ClusterData.TalosVersion = talosVersion(talosPath, i.FileName, i.ClusterData.Address)
+	}
+
 	i.ClusterData.Status = ""
 	return nil
 }
 
-func (a *App) EnsureConfigPath() error {
-	if _, err := os.Stat(a.KubePath); err != nil {
-		return err
+func talosVersion(talosPath, fileName, address string) string {
+	talosConfig := talosConfigPath(talosPath, fileName)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "talosctl", "version",
+		"--talosconfig", talosConfig, "--nodes", address, "--short").Output()
+
+	if err != nil {
+		return ""
 	}
-	configsPath := filepath.Join(a.KubePath, "configs")
+	return strings.TrimSpace(string(out))
+}
+
+func ensureConfigsDir(base string, required bool) error {
+	if _, err := os.Stat(base); err != nil {
+		if required {
+			return err
+		}
+		return nil
+	}
+	configsPath := filepath.Join(base, "configs")
 	if _, err := os.Stat(configsPath); err == nil {
 		return nil
 	} else if !os.IsNotExist(err) {
 		return err
 	}
 
-	err := os.MkdirAll(configsPath, 0755)
-
-	if err != nil {
+	if err := os.MkdirAll(configsPath, 0755); err != nil {
 		return err
 	}
 
-	currentConfig := filepath.Join(a.KubePath, "config")
-	data, err := os.ReadFile(currentConfig)
+	data, err := os.ReadFile(filepath.Join(base, "config"))
 	if err != nil {
-		return err
+		if required {
+			return err
+		}
+		return nil
 	}
+	return os.WriteFile(filepath.Join(configsPath, "config"), data, 0644)
+}
 
-	firstConfig := filepath.Join(configsPath, "config")
-	err = os.WriteFile(firstConfig, data, 0644)
-	if err != nil {
+func (a *App) EnsureConfigPath() error {
+	if err := ensureConfigsDir(a.KubePath, true); err != nil {
 		return err
 	}
-	return nil
+	return ensureConfigsDir(a.TalosPath, false)
 }
 
 func (a *App) Import(from string, to string) error {

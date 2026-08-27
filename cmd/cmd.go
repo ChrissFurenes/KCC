@@ -22,6 +22,10 @@ func KubePath() string {
 	return filepath.Join(UserHomeDir(), ".kube")
 }
 
+func TalosPath() string {
+	return filepath.Join(UserHomeDir(), ".talos")
+}
+
 func Help() {
 	fmt.Println("KCC usage:")
 	fmt.Println("version ........ prints version")
