@@ -81,6 +81,32 @@ jobs:
             -o "dist/kcc.linux.armv7" .
 
       # ============================================================
+      # Android
+      # ============================================================
+
+      - name: Build Android binaries
+        run: |
+          mkdir -p dist
+
+          echo "Building version: $VERSION"
+
+          GOOS=android \
+          GOARCH=amd64 \
+          CGO_ENABLED=0 \
+            go build \
+            -trimpath \
+            -ldflags "-s -w -X main.version=$VERSION" \
+            -o "dist/kcc.android.amd64" .
+
+          GOOS=android \
+          GOARCH=arm64 \
+          CGO_ENABLED=0 \
+            go build \
+            -trimpath \
+            -ldflags "-s -w -X main.version=$VERSION" \
+            -o "dist/kcc.android.arm64" .
+
+      # ============================================================
       # FreeBSD
       # ============================================================
 
@@ -492,6 +518,9 @@ jobs:
             dist/kcc.linux.armv5
             dist/kcc.linux.armv6
             dist/kcc.linux.armv7
+            
+            dist/kcc.android.amd64
+            dist/kcc.android.arm64
 
             dist/kcc.mac.arm64
             dist/kcc.mac.amd64
@@ -606,6 +635,7 @@ jobs:
             kcc.freebsd.* \
             kcc.windows.* \
             kcc.mac.* \
+            kcc.android.* \
             *.deb \
             *.pkg.tar.zst \
             *_nix-flake.tar.gz \
@@ -628,6 +658,9 @@ jobs:
             dist/kcc.linux.armv5
             dist/kcc.linux.armv6
             dist/kcc.linux.armv7
+            
+            dist/kcc.android.amd64
+            dist/kcc.android.arm64
 
             dist/kcc.windows.amd64.exe
             dist/*_x64.msi
