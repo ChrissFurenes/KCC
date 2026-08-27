@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -45,7 +46,7 @@ type Item struct {
 	IsActive    bool
 	IsTalos     bool
 	IsBack      bool
-	Config      ConfigInformation
+	Config      KubeConfigInformation
 	ClusterData ClusterData
 }
 
@@ -61,7 +62,7 @@ type ClusterData struct {
 	Test         string
 }
 
-type ConfigInformation struct {
+type KubeConfigInformation struct {
 	Clusters []struct {
 		Name    string `yaml:"name"`
 		Cluster struct {
@@ -76,6 +77,16 @@ type ConfigInformation struct {
 		} `yaml:"context"`
 		Name string `yaml:"name"`
 	} `yaml:"contexts"`
+}
+
+type TalosConfigInformation struct {
+	Context  string                        `yaml:"context"`
+	Contexts map[string]TalosContextConfig `yaml:"contexts"`
+}
+type TalosContextConfig struct {
+	Target    string   `yaml:"target,omitempty"`
+	Endpoints []string `yaml:"endpoints"`
+	Nodes     []string `yaml:"nodes,omitempty"`
 }
 
 func NewApp(version string) *App {
@@ -153,7 +164,7 @@ func (a *App) GoBack() {
 
 func statusColorIcon(ok bool) (color, icon string) {
 	if ok {
-		return "[green]", "🟢"
+		return "[green]", " 🟢"
 	}
 	return "[red]", "🔴"
 }
@@ -189,10 +200,10 @@ func (i *Item) InfoText() string {
 		"\nPort:.. " + data.Port +
 		"\nPing:.. " + color + strings.ToUpper(strconv.FormatBool(data.Reachable)) + "[::-] [white]" + statusIcon +
 		"\nTalos:. " + talosColor + strings.ToUpper(strconv.FormatBool(i.IsTalos)) + "[::-] [white]" + talosIcon +
-		"\nPath:.. " + filepath.Base(i.Path)
+		"\nKube Path:.. " + filepath.Base(i.Path) + "\n"
 
 	if data.Reachable {
-		information += "\nNodes:. " + strconv.Itoa(data.Nodes) + "\nPods:.. " + strconv.Itoa(data.Pods)
+		information += "\nKubernetes:\nNodes:. " + strconv.Itoa(data.Nodes) + "\nPods:.. " + strconv.Itoa(data.Pods)
 		if data.TalosVersion != "" {
 			information += "\nOS:.... " + data.TalosVersion
 		}
@@ -457,7 +468,7 @@ func (a *App) EnsureConfigPath() error {
 	return ensureConfigsDir(a.TalosPath, false)
 }
 
-func (a *App) Import(from string, to string) error {
+func (a *App) Import(ftype string, from string, to string) error {
 	source := from
 
 	if !filepath.IsAbs(source) {
@@ -469,25 +480,28 @@ func (a *App) Import(from string, to string) error {
 	}
 
 	var testItem Item
-	err := testItem.Load(source)
-	if err != nil {
-		return fmt.Errorf("invalid kubeconfig: %w", err)
-	}
+	if slices.Contains([]string{"kube", "kubeconfig", "k8s"}, strings.ToLower(ftype)) {
+		err := testItem.Load(source)
+		if err != nil {
+			return fmt.Errorf("invalid kubeconfig: %w", err)
+		}
 
-	if !testItem.IsConfig {
-		return fmt.Errorf("%s is not a config file", source)
-	}
+		if !testItem.IsConfig {
+			return fmt.Errorf("%s is not a config file", source)
+		}
 
-	destination := filepath.Join(a.KubePath, "configs", to)
-	err = os.MkdirAll(filepath.Dir(destination), 0755)
-	if err != nil {
-		return err
+		destination := filepath.Join(a.KubePath, "configs", to)
+		err = os.MkdirAll(filepath.Dir(destination), 0755)
+		if err != nil {
+			return err
+		}
+		file, err := os.ReadFile(source)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(destination, file, 0644)
 	}
-	file, err := os.ReadFile(source)
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(destination, file, 0644)
+	return nil
 }
 
 func (a *App) HandleArgs(args []string) (bool, error) {
@@ -507,9 +521,9 @@ func (a *App) HandleArgs(args []string) (bool, error) {
 
 	case "import", "i":
 		if len(args) != 3 {
-			return true, fmt.Errorf("usage: kcc import <from> <to>")
+			return true, fmt.Errorf("usage: kcc import <kube/talos> <from> <to>")
 		}
-		err := a.Import(args[1], args[2])
+		err := a.Import(args[1], args[2], args[3])
 		if err != nil {
 			return true, err
 		}
@@ -626,7 +640,7 @@ func (i *Item) Load(path string) error {
 		return err
 	}
 	i.File = file
-	var config ConfigInformation
+	var config KubeConfigInformation
 	if err := yaml.Unmarshal(file, &config); err != nil {
 		return err
 	}
