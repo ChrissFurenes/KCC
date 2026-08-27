@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -49,14 +50,15 @@ type Item struct {
 }
 
 type ClusterData struct {
-	User      string
-	Address   string
-	Port      string
-	Reachable bool
-	Nodes     int
-	Pods      int
-	Status    string
-	Test      string
+	User         string
+	Address      string
+	Port         string
+	Reachable    bool
+	Nodes        int
+	Pods         int
+	TalosVersion string
+	Status       string
+	Test         string
 }
 
 type ConfigInformation struct {
@@ -99,6 +101,10 @@ func NewApp(version string) *App {
 
 func (a *App) ConfigDir() string {
 	return filepath.Join(a.KubePath, "configs", a.CurrentFolder)
+}
+
+func talosConfigPath(talosPath, fileName string) string {
+	return filepath.Join(talosPath, "configs", fileName)
 }
 
 func (i *Item) DisplayName() string {
@@ -187,6 +193,9 @@ func (i *Item) InfoText() string {
 
 	if data.Reachable {
 		information += "\nNodes:. " + strconv.Itoa(data.Nodes) + "\nPods:.. " + strconv.Itoa(data.Pods)
+		if data.TalosVersion != "" {
+			information += "\nOS:.... " + data.TalosVersion
+		}
 	}
 	if data.Status != "" {
 		information += "\n\nStatus: " + data.Status
@@ -226,7 +235,7 @@ func (a *App) LoadConfigs() error {
 		}
 		if item.IsConfig {
 			item.IsActive = item.IsCurrent(a.KubePath)
-			if _, err := os.Stat(filepath.Join(a.TalosPath, "configs", item.FileName)); err == nil {
+			if _, err := os.Stat(talosConfigPath(a.TalosPath, item.FileName)); err == nil {
 				item.IsTalos = true
 			}
 		}
@@ -303,7 +312,7 @@ func (a *App) RefreshClusterInfo() {
 		if !items[index].IsConfig {
 			continue
 		}
-		_ = items[index].RefreshClusterInfo()
+		_ = items[index].RefreshClusterInfo(a.TalosPath)
 	}
 
 	a.UI.QueueUpdateDraw(func() {
@@ -348,7 +357,7 @@ func (i *Item) Apply(kubePath, talosPath string) error {
 	i.IsActive = true
 
 	if i.IsTalos {
-		talosSource := filepath.Join(talosPath, "configs", i.FileName)
+		talosSource := talosConfigPath(talosPath, i.FileName)
 		talosDest := filepath.Join(talosPath, "config")
 		_ = os.Remove(talosDest)
 		_ = os.Link(talosSource, talosDest)
@@ -356,7 +365,7 @@ func (i *Item) Apply(kubePath, talosPath string) error {
 	return nil
 }
 
-func (i *Item) RefreshClusterInfo() error {
+func (i *Item) RefreshClusterInfo(talosPath string) error {
 	if !i.IsConfig || i.IsDir || i.IsBack {
 		return nil
 	}
@@ -391,8 +400,26 @@ func (i *Item) RefreshClusterInfo() error {
 		return err
 	}
 	i.ClusterData.Pods = len(pods.Items)
+
+	if i.IsTalos {
+		i.ClusterData.TalosVersion = talosVersion(talosPath, i.FileName, i.ClusterData.Address)
+	}
+
 	i.ClusterData.Status = ""
 	return nil
+}
+
+func talosVersion(talosPath, fileName, address string) string {
+	talosConfig := talosConfigPath(talosPath, fileName)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, "talosctl", "version",
+		"--talosconfig", talosConfig, "--nodes", address, "--short").Output()
+
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
 }
 
 func ensureConfigsDir(base string, required bool) error {
