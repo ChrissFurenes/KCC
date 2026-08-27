@@ -25,6 +25,7 @@ type App struct {
 	version       string
 	Items         []Item
 	KubePath      string
+	TalosPath     string
 	CurrentFolder string
 	UI            *tview.Application
 	ConfigList    *tview.List
@@ -78,6 +79,7 @@ type ConfigInformation struct {
 func NewApp(version string) *App {
 	a := &App{
 		KubePath:      cmd.KubePath(),
+		TalosPath:     cmd.TalosPath(),
 		CurrentFolder: "",
 		UI:            tview.NewApplication(),
 		ConfigList:    tview.NewList().ShowSecondaryText(false),
@@ -143,6 +145,13 @@ func (a *App) GoBack() {
 	go a.RefreshClusterInfo()
 }
 
+func statusColorIcon(ok bool) (color, icon string) {
+	if ok {
+		return "[green]", "🟢"
+	}
+	return "[red]", "🔴"
+}
+
 func (i *Item) InfoText() string {
 
 	if i.IsBack {
@@ -166,17 +175,14 @@ func (i *Item) InfoText() string {
 	}
 
 	data := i.ClusterData
-	statusIcon := "🔴"
-	color := "[red]"
-	if data.Reachable {
-		statusIcon = "🟢"
-		color = "[green]"
-	}
+	color, statusIcon := statusColorIcon(data.Reachable)
+	talosColor, talosIcon := statusColorIcon(i.IsTalos)
 	information := "Name:.. " + i.Name +
 		"\n\nUser:.. " + data.User +
 		"\nIP:.... " + data.Address +
 		"\nPort:.. " + data.Port +
 		"\nPing:.. " + color + strings.ToUpper(strconv.FormatBool(data.Reachable)) + "[::-] [white]" + statusIcon +
+		"\nTalos:. " + talosColor + strings.ToUpper(strconv.FormatBool(i.IsTalos)) + "[::-] [white]" + talosIcon +
 		"\nPath:.. " + filepath.Base(i.Path)
 
 	if data.Reachable {
@@ -220,6 +226,9 @@ func (a *App) LoadConfigs() error {
 		}
 		if item.IsConfig {
 			item.IsActive = item.IsCurrent(a.KubePath)
+			if _, err := os.Stat(filepath.Join(a.TalosPath, "configs", item.FileName)); err == nil {
+				item.IsTalos = true
+			}
 		}
 		a.Items = append(a.Items, item)
 	}
@@ -253,7 +262,7 @@ func (a *App) OpenItem(index int) {
 		return
 	}
 	if item.IsConfig {
-		err := item.Apply(a.KubePath)
+		err := item.Apply(a.KubePath, a.TalosPath)
 
 		if err != nil {
 			item.ClusterData.Status = "[red]Apply failed: " + err.Error() + "[::-]"
@@ -312,7 +321,7 @@ func (a *App) RefreshClusterInfo() {
 	})
 }
 
-func (i *Item) Apply(kubePath string) error {
+func (i *Item) Apply(kubePath, talosPath string) error {
 	if !i.IsConfig {
 		return fmt.Errorf("%s is not a config", i.Name)
 	}
@@ -337,6 +346,13 @@ func (i *Item) Apply(kubePath string) error {
 	}
 	_ = os.Remove(backup)
 	i.IsActive = true
+
+	if i.IsTalos {
+		talosSource := filepath.Join(talosPath, "configs", i.FileName)
+		talosDest := filepath.Join(talosPath, "config")
+		_ = os.Remove(talosDest)
+		_ = os.Link(talosSource, talosDest)
+	}
 	return nil
 }
 
@@ -379,35 +395,39 @@ func (i *Item) RefreshClusterInfo() error {
 	return nil
 }
 
-func (a *App) EnsureConfigPath() error {
-	if _, err := os.Stat(a.KubePath); err != nil {
-		return err
+func ensureConfigsDir(base string, required bool) error {
+	if _, err := os.Stat(base); err != nil {
+		if required {
+			return err
+		}
+		return nil
 	}
-	configsPath := filepath.Join(a.KubePath, "configs")
+	configsPath := filepath.Join(base, "configs")
 	if _, err := os.Stat(configsPath); err == nil {
 		return nil
 	} else if !os.IsNotExist(err) {
 		return err
 	}
 
-	err := os.MkdirAll(configsPath, 0755)
-
-	if err != nil {
+	if err := os.MkdirAll(configsPath, 0755); err != nil {
 		return err
 	}
 
-	currentConfig := filepath.Join(a.KubePath, "config")
-	data, err := os.ReadFile(currentConfig)
+	data, err := os.ReadFile(filepath.Join(base, "config"))
 	if err != nil {
-		return err
+		if required {
+			return err
+		}
+		return nil
 	}
+	return os.WriteFile(filepath.Join(configsPath, "config"), data, 0644)
+}
 
-	firstConfig := filepath.Join(configsPath, "config")
-	err = os.WriteFile(firstConfig, data, 0644)
-	if err != nil {
+func (a *App) EnsureConfigPath() error {
+	if err := ensureConfigsDir(a.KubePath, true); err != nil {
 		return err
 	}
-	return nil
+	return ensureConfigsDir(a.TalosPath, false)
 }
 
 func (a *App) Import(from string, to string) error {
