@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/chrissfurenes/kcc/cmd"
+	"github.com/chrissfurenes/kcc/kube"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 	"gopkg.in/yaml.v3"
@@ -34,6 +35,7 @@ type App struct {
 	InfoData      *tview.TextView
 	CommandList   *tview.TextView
 	Grid          *tview.Grid
+	Kube          *kube.Kube
 }
 
 type Item struct {
@@ -46,7 +48,7 @@ type Item struct {
 	IsActive    bool
 	IsTalos     bool
 	IsBack      bool
-	Config      KubeConfigInformation
+	Config      kube.KubeConfigInformation
 	ClusterData ClusterData
 }
 
@@ -60,33 +62,6 @@ type ClusterData struct {
 	TalosVersion string
 	Status       string
 	Test         string
-}
-
-type KubeConfigInformation struct {
-	Clusters []struct {
-		Name    string `yaml:"name"`
-		Cluster struct {
-			Server string `yaml:"server"`
-		} `yaml:"cluster"`
-	} `yaml:"clusters"`
-
-	Contexts []struct {
-		Context struct {
-			Cluster string `yaml:"cluster"`
-			User    string `yaml:"user"`
-		} `yaml:"context"`
-		Name string `yaml:"name"`
-	} `yaml:"contexts"`
-}
-
-type TalosConfigInformation struct {
-	Context  string                        `yaml:"context"`
-	Contexts map[string]TalosContextConfig `yaml:"contexts"`
-}
-type TalosContextConfig struct {
-	Target    string   `yaml:"target,omitempty"`
-	Endpoints []string `yaml:"endpoints"`
-	Nodes     []string `yaml:"nodes,omitempty"`
 }
 
 func NewApp(version string) *App {
@@ -107,6 +82,7 @@ func NewApp(version string) *App {
 		AddItem(a.ConfigList, 0, 0, 5, 1, 0, 0, true).
 		AddItem(a.InfoData, 0, 1, 5, 1, 0, 0, false).
 		AddItem(a.CommandList, 5, 0, 1, 2, 1, 0, false)
+
 	return a
 }
 
@@ -640,7 +616,7 @@ func (i *Item) Load(path string) error {
 		return err
 	}
 	i.File = file
-	var config KubeConfigInformation
+	var config kube.KubeConfigInformation
 	if err := yaml.Unmarshal(file, &config); err != nil {
 		return err
 	}
