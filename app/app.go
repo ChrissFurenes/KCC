@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"net"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,6 +14,7 @@ import (
 
 	"github.com/chrissfurenes/kcc/cmd"
 	"github.com/chrissfurenes/kcc/kube"
+	"github.com/chrissfurenes/kcc/talos"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 	"gopkg.in/yaml.v3"
@@ -49,19 +48,7 @@ type Item struct {
 	IsTalos     bool
 	IsBack      bool
 	Config      kube.KubeConfigInformation
-	ClusterData ClusterData
-}
-
-type ClusterData struct {
-	User         string
-	Address      string
-	Port         string
-	Reachable    bool
-	Nodes        int
-	Pods         int
-	TalosVersion string
-	Status       string
-	Test         string
+	ClusterData kube.ClusterData
 }
 
 func NewApp(version string) *App {
@@ -123,7 +110,7 @@ func (a *App) GoBack() {
 
 	previousFolder := a.CurrentFolder
 	a.CurrentFolder = parent
-	err := a.LoadConfigs()
+	err := a.LoadEntities()
 
 	if err != nil {
 		a.CurrentFolder = previousFolder
@@ -145,38 +132,38 @@ func statusColorIcon(ok bool) (color, icon string) {
 	return "[red]", "🔴"
 }
 
-func (i *Item) InfoText() string {
+func (I *Item) InfoText() string {
 
-	if i.IsBack {
+	if I.IsBack {
 		return ""
 	}
 
-	if i.IsDir {
-		entries, err := os.ReadDir(i.Path)
+	if I.IsDir {
+		entries, err := os.ReadDir(I.Path)
 		if err != nil {
-			return "Folder path: " + i.Path + "\n\n[red]" + err.Error() + "[::-]"
+			return "Folder path: " + I.Path + "\n\n[red]" + err.Error() + "[::-]"
 		}
-		return fmt.Sprintf("Folder path: %s\nItems: %d", i.Path, len(entries))
+		return fmt.Sprintf("Folder path: %s\nItems: %d", I.Path, len(entries))
 	}
 
-	if !i.IsConfig {
-		information := "Name:.. " + i.Name + "\nPath:.. " + filepath.Base(i.Path)
-		if i.ClusterData.Status != "" {
-			information += "\n\nStatus: " + i.ClusterData.Status
+	if !I.IsConfig {
+		information := "Name:.. " + I.Name + "\nPath:.. " + filepath.Base(I.Path)
+		if I.ClusterData.Status != "" {
+			information += "\n\nStatus: " + I.ClusterData.Status
 		}
 		return information
 	}
 
-	data := i.ClusterData
+	data := I.ClusterData
 	color, statusIcon := statusColorIcon(data.Reachable)
-	talosColor, talosIcon := statusColorIcon(i.IsTalos)
-	information := "Name:.. " + i.Name +
+	talosColor, talosIcon := statusColorIcon(I.IsTalos)
+	information := "Name:.. " + I.Name +
 		"\n\nUser:.. " + data.User +
 		"\nIP:.... " + data.Address +
-		"\nPort:.. " + data.Port +
+		"\nPort:.. " + strconv.FormatInt(data.Port, 5) +
 		"\nPing:.. " + color + strings.ToUpper(strconv.FormatBool(data.Reachable)) + "[::-] [white]" + statusIcon +
-		"\nTalos:. " + talosColor + strings.ToUpper(strconv.FormatBool(i.IsTalos)) + "[::-] [white]" + talosIcon +
-		"\nKube Path:.. " + filepath.Base(i.Path) + "\n"
+		"\nTalos:. " + talosColor + strings.ToUpper(strconv.FormatBool(I.IsTalos)) + "[::-] [white]" + talosIcon +
+		"\nKube Path:.. " + filepath.Base(I.Path) + "\n"
 
 	if data.Reachable {
 		information += "\nKubernetes:\nNodes:. " + strconv.Itoa(data.Nodes) + "\nPods:.. " + strconv.Itoa(data.Pods)
@@ -193,7 +180,7 @@ func (i *Item) InfoText() string {
 	return information
 }
 
-func (a *App) LoadConfigs() error {
+func (a *App) LoadEntities() error {
 	a.Items = nil
 	entries, err := os.ReadDir(a.ConfigDir())
 	if err != nil {
@@ -206,28 +193,31 @@ func (a *App) LoadConfigs() error {
 			name = filepath.Base(parent)
 		}
 		a.Items = append(a.Items, Item{Name: name, IsBack: true})
+
 	}
 	for _, entry := range entries {
-		fullPath := filepath.Join(a.ConfigDir(), entry.Name())
-		var item Item
-		err := item.Load(fullPath)
-		if err != nil {
-			item.Name = entry.Name()
-			item.Path = fullPath
-			item.FileName = entry.Name()
-			item.IsDir = entry.IsDir()
-			item.ClusterData.Status = "[red]" + err.Error() + "[::-]"
-			a.Items = append(a.Items, item)
-			continue
+		var currentEntity Item
+
+		if entry.IsDir() {
+			currentEntity.Name = entry.Name()
+			currentEntity.IsDir = true
+
+		} else {
+			k := kube.NewKube(filepath.Join(a.ConfigDir(), entry.Name()))
+			currentEntity.Name = k.GetName()
+			currentEntity.Path = filepath.Join(a.ConfigDir(), entry.Name())
+			currentEntity.FileName = entry.Name()
+			currentEntity.IsDir = false
+			currentEntity.IsConfig = true
+			currentEntity.ClusterData.Address = k.Address
+			currentEntity.ClusterData.Port = k.Port
+			currentEntity.ClusterData.Reachable = k.Reachable
+			currentEntity.ClusterData.Status = k.Status
+			currentEntity.ClusterData.User = k.User
 		}
-		if item.IsConfig {
-			item.IsActive = item.IsCurrent(a.KubePath)
-			if _, err := os.Stat(talosConfigPath(a.TalosPath, item.FileName)); err == nil {
-				item.IsTalos = true
-			}
-		}
-		a.Items = append(a.Items, item)
+		a.Items = append(a.Items, currentEntity)
 	}
+
 	return nil
 }
 
@@ -244,7 +234,7 @@ func (a *App) OpenItem(index int) {
 	if item.IsDir {
 		previousFolder := a.CurrentFolder
 		a.CurrentFolder = filepath.Join(a.CurrentFolder, item.Name)
-		err := a.LoadConfigs()
+		err := a.LoadEntities()
 		if err != nil {
 			a.CurrentFolder = previousFolder
 			a.InfoData.SetText("[red]" + err.Error() + "[::-]")
@@ -497,10 +487,14 @@ func (a *App) HandleArgs(args []string) (bool, error) {
 
 	case "import", "i":
 		if len(args) != 3 {
-			return true, fmt.Errorf("usage: kcc import <kube/talos> <from> <to>")
+			return true, fmt.Errorf("usage: kcc import [kube/talos] <from> <to>")
 		}
-		err := a.Import(args[1], args[2], args[3])
-		if err != nil {
+		switch args[1] {
+		case "kubeconfig":
+			err := kube.ImportConfig(args[2], args[3])
+			return true, err
+		case "talos":
+			err := talos.ImportConfig(args[2], args[3])
 			return true, err
 		}
 		fmt.Println("Config imported")
@@ -516,7 +510,7 @@ func (a *App) Run() error {
 		return err
 	}
 
-	if err := a.LoadConfigs(); err != nil {
+	if err := a.LoadEntities(); err != nil {
 		return err
 	}
 
@@ -551,48 +545,6 @@ func (a *App) Run() error {
 		return event
 	})
 	return a.UI.SetRoot(a.Grid, true).Run()
-}
-
-func (c *ClusterData) SetServer(server string) error {
-	u, err := url.Parse(server)
-	if err != nil {
-		return err
-	}
-	if u.Hostname() == "" {
-		return fmt.Errorf("invalid server address: %s", server)
-	}
-
-	c.Address = u.Hostname()
-	c.Port = u.Port()
-
-	if c.Port == "" {
-		switch u.Scheme {
-		case "https":
-			c.Port = "443"
-		case "http":
-			c.Port = "80"
-		default:
-			return fmt.Errorf(
-				"server has no port: %s",
-				server,
-			)
-		}
-	}
-	return nil
-}
-
-func (c *ClusterData) Ping() bool {
-	address := net.JoinHostPort(c.Address, c.Port)
-
-	conn, err := net.DialTimeout("tcp", address, 2*time.Second)
-
-	if err != nil {
-		c.Reachable = false
-		return false
-	}
-	defer conn.Close()
-	c.Reachable = true
-	return true
 }
 
 func (i *Item) Load(path string) error {

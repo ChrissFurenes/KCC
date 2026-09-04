@@ -1,6 +1,9 @@
 package talos
 
 import (
+	"os"
+	"path/filepath"
+
 	"github.com/chrissfurenes/kcc/cmd"
 )
 
@@ -28,7 +31,15 @@ func NewTalos() *Talos {
 	return t
 }
 
-func (t *Talos) ImportConfig(path string) error {
+func ImportConfig(from string, to string) error {
+	source := from
+	if !filepath.IsAbs(source) {
+		dir, err := os.Getwd()
+		if err != nil {
+			return err
+		}
+		source = filepath.Join(dir, source)
+	}
 	return nil
 }
 
