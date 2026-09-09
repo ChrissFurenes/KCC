@@ -1,7 +1,6 @@
 package app
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -34,7 +33,7 @@ type App struct {
 	InfoData      *tview.TextView
 	CommandList   *tview.TextView
 	Grid          *tview.Grid
-	Kube          *kube.Kube
+	//	Kube          *kube.Kube
 }
 
 type Item struct {
@@ -51,7 +50,7 @@ type Item struct {
 	ClusterData kube.ClusterData
 }
 
-func NewApp(version string) *App {
+func NewApp(version string) *App { // OK
 	a := &App{
 		KubePath:      cmd.KubePath(),
 		TalosPath:     cmd.TalosPath(),
@@ -73,7 +72,7 @@ func NewApp(version string) *App {
 	return a
 }
 
-func (a *App) ConfigDir() string {
+func (a *App) ConfigDir() string { // needs change
 	return filepath.Join(a.KubePath, "configs", a.CurrentFolder)
 }
 
@@ -529,7 +528,7 @@ func (a *App) Run() error {
 	a.UI.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyF5:
-			for index := range a.Items {
+			for index := range a.Items { // need to change
 				if a.Items[index].IsConfig {
 					a.Items[index].ClusterData.Status = "[yellow]Getting info from cluster....[::-]"
 				}
@@ -594,37 +593,37 @@ func (i *Item) Load(path string) error {
 	return nil
 }
 
-func (i *Item) GetFile() ([]byte, error) {
-	if !i.IsConfig || i.IsDir {
-		return nil, fmt.Errorf("%s is not a config file", i.Path)
-	}
-	file, err := os.ReadFile(i.Path)
-	if err != nil {
-		return nil, err
-	}
-	i.File = file
-	return file, nil
-}
+//func (i *Item) GetFile() ([]byte, error) {
+//	if !i.IsConfig || i.IsDir {
+//		return nil, fmt.Errorf("%s is not a config file", i.Path)
+//	}
+//	file, err := os.ReadFile(i.Path)
+//	if err != nil {
+//		return nil, err
+//	}
+//	i.File = file
+//	return file, nil
+//}
 
-func (i *Item) IsCurrent(kubePath string) bool {
-	if !i.IsConfig {
-		return false
-	}
-	currentPath := filepath.Join(kubePath, "config")
-
-	sourceInfo, sourceErr := os.Stat(i.Path)
-	currentInfo, currentErr := os.Stat(currentPath)
-	if sourceErr == nil && currentErr == nil && os.SameFile(sourceInfo, currentInfo) {
-		return true
-	}
-
-	current, err := os.ReadFile(currentPath)
-	if err != nil {
-		return false
-	}
-	file, err := os.ReadFile(i.Path)
-	if err != nil {
-		return false
-	}
-	return bytes.Equal(file, current)
-}
+//func (i *Item) IsCurrent(kubePath string) bool {
+//	if !i.IsConfig {
+//		return false
+//	}
+//	currentPath := filepath.Join(kubePath, "config")
+//
+//	sourceInfo, sourceErr := os.Stat(i.Path)
+//	currentInfo, currentErr := os.Stat(currentPath)
+//	if sourceErr == nil && currentErr == nil && os.SameFile(sourceInfo, currentInfo) {
+//		return true
+//	}
+//
+//	current, err := os.ReadFile(currentPath)
+//	if err != nil {
+//		return false
+//	}
+//	file, err := os.ReadFile(i.Path)
+//	if err != nil {
+//		return false
+//	}
+//	return bytes.Equal(file, current)
+//}
