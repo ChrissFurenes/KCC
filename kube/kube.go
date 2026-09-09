@@ -43,6 +43,7 @@ type Kube struct {
 	Pods            int
 	Status          string
 	KubeConfig      KubeConfigInformation
+	Cluster         ClusterData
 }
 
 type ClusterData struct {
@@ -179,6 +180,17 @@ func (c *ClusterData) SetServer(server string) error {
 	return nil
 }
 
+func (k *Kube) IsCurrentCluster() bool {
+	readfile, err := os.Stat(k.CurrentFilePath)
+	if err != nil {
+		return false
+	}
+	currfile, err := os.Stat(cmd.KubePath())
+	if err != nil {
+		return false
+	}
+	return os.SameFile(readfile, currfile)
+}
 func ApplyConfig(path string) error {
 	return nil
 }

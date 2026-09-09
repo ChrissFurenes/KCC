@@ -1,30 +1,21 @@
 package app
 
 import (
-	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"slices"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/chrissfurenes/kcc/cmd"
+	"github.com/chrissfurenes/kcc/kcc"
 	"github.com/chrissfurenes/kcc/kube"
 	"github.com/chrissfurenes/kcc/talos"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
-	"gopkg.in/yaml.v3"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
 type App struct {
 	version       string
-	Items         []Item
+	Items         []kcc.Item
 	KubePath      string
 	TalosPath     string
 	CurrentFolder string
@@ -36,24 +27,24 @@ type App struct {
 	//	Kube          *kube.Kube
 }
 
-type Item struct {
-	Name        string
-	Path        string
-	FileName    string
-	File        []byte
-	IsDir       bool
-	IsConfig    bool
-	IsActive    bool
-	IsTalos     bool
-	IsBack      bool
-	Config      kube.KubeConfigInformation
-	ClusterData kube.ClusterData
-}
+//type Item struct {
+//	Name        string
+//	Path        string
+//	FileName    string
+//	File        []byte
+//	IsDir       bool
+//	IsConfig    bool
+//	IsActive    bool
+//	IsTalos     bool
+//	IsBack      bool
+//	Config      kube.KubeConfigInformation
+//	ClusterData kube.ClusterData
+//}
 
 func NewApp(version string) *App { // OK
 	a := &App{
-		KubePath:      cmd.KubePath(),
-		TalosPath:     cmd.TalosPath(),
+		KubePath: cmd.KubePath(),
+		//TalosPath:     cmd.TalosPath(),
 		CurrentFolder: "",
 		UI:            tview.NewApplication(),
 		ConfigList:    tview.NewList().ShowSecondaryText(false),
@@ -76,26 +67,26 @@ func (a *App) ConfigDir() string { // needs change
 	return filepath.Join(a.KubePath, "configs", a.CurrentFolder)
 }
 
-func talosConfigPath(talosPath, fileName string) string {
-	return filepath.Join(talosPath, "configs", fileName)
-}
+//func talosConfigPath(talosPath, fileName string) string { // needs change
+//	return filepath.Join(talosPath, "configs", fileName)
+//}
 
-func (i *Item) DisplayName() string {
-	if i.IsBack {
-		return " << Back to folder: " + i.Name
-	}
-	if i.IsDir {
-		return "📁 " + i.Name
-	}
-	if !i.IsConfig {
-		return "⚠ " + i.Name
-	}
-	name := "☸  " + i.Name
-	if i.IsActive {
-		name += " - [green]ACTIVE[::-]"
-	}
-	return name
-}
+//func (i *Item) DisplayName() string { // is to be removed
+//	if i.IsBack {
+//		return " << Back to folder: " + i.Name
+//	}
+//	if i.IsDir {
+//		return "📁 " + i.Name
+//	}
+//	if !i.IsConfig {
+//		return "⚠ " + i.Name
+//	}
+//	name := "☸  " + i.Name
+//	if i.IsActive {
+//		name += " - [green]ACTIVE[::-]"
+//	}
+//	return name
+//}
 
 func (a *App) GoBack() {
 	if a.CurrentFolder == "" {
@@ -124,62 +115,62 @@ func (a *App) GoBack() {
 	go a.RefreshClusterInfo()
 }
 
-func statusColorIcon(ok bool) (color, icon string) {
-	if ok {
-		return "[green]", " 🟢"
-	}
-	return "[red]", "🔴"
-}
+//func statusColorIcon(ok bool) (color, icon string) {
+//	if ok {
+//		return "[green]", " 🟢"
+//	}
+//	return "[red]", "🔴"
+//}
 
-func (I *Item) InfoText() string {
+//func (I *Item) InfoText() string {
+//
+//	if I.IsBack {
+//		return ""
+//	}
+//
+//	if I.IsDir {
+//		entries, err := os.ReadDir(I.Path)
+//		if err != nil {
+//			return "Folder path: " + I.Path + "\n\n[red]" + err.Error() + "[::-]"
+//		}
+//		return fmt.Sprintf("Folder path: %s\nItems: %d", I.Path, len(entries))
+//	}
+//
+//	if !I.IsConfig {
+//		information := "Name:.. " + I.Name + "\nPath:.. " + filepath.Base(I.Path)
+//		if I.ClusterData.Status != "" {
+//			information += "\n\nStatus: " + I.ClusterData.Status
+//		}
+//		return information
+//	}
+//
+//	data := I.ClusterData
+//	color, statusIcon := statusColorIcon(data.Reachable)
+//	//talosColor, talosIcon := statusColorIcon(I.IsTalos)
+//	information := "Name:.. " + I.Name +
+//		"\n\nUser:.. " + data.User +
+//		"\nIP:.... " + data.Address +
+//		"\nPort:.. " + strconv.FormatInt(data.Port, 5) +
+//		"\nPing:.. " + color + strings.ToUpper(strconv.FormatBool(data.Reachable)) + "[::-] [white]" + statusIcon +
+//		//"\nTalos:. " + talosColor + strings.ToUpper(strconv.FormatBool(I.IsTalos)) + "[::-] [white]" + talosIcon +
+//		"\nKube Path:.. " + filepath.Base(I.Path) + "\n"
+//
+//	if data.Reachable {
+//		information += "\nKubernetes:\nNodes:. " + strconv.Itoa(data.Nodes) + "\nPods:.. " + strconv.Itoa(data.Pods)
+//		//if data.TalosVersion != "" {
+//		//	information += "\nOS:.... " + data.TalosVersion
+//		//}
+//	}
+//	if data.Status != "" {
+//		information += "\n\nStatus: " + data.Status
+//	}
+//	if data.Test != "" {
+//		information += "\n\n\nTests:. " + data.Test
+//	}
+//	return information
+//}
 
-	if I.IsBack {
-		return ""
-	}
-
-	if I.IsDir {
-		entries, err := os.ReadDir(I.Path)
-		if err != nil {
-			return "Folder path: " + I.Path + "\n\n[red]" + err.Error() + "[::-]"
-		}
-		return fmt.Sprintf("Folder path: %s\nItems: %d", I.Path, len(entries))
-	}
-
-	if !I.IsConfig {
-		information := "Name:.. " + I.Name + "\nPath:.. " + filepath.Base(I.Path)
-		if I.ClusterData.Status != "" {
-			information += "\n\nStatus: " + I.ClusterData.Status
-		}
-		return information
-	}
-
-	data := I.ClusterData
-	color, statusIcon := statusColorIcon(data.Reachable)
-	talosColor, talosIcon := statusColorIcon(I.IsTalos)
-	information := "Name:.. " + I.Name +
-		"\n\nUser:.. " + data.User +
-		"\nIP:.... " + data.Address +
-		"\nPort:.. " + strconv.FormatInt(data.Port, 5) +
-		"\nPing:.. " + color + strings.ToUpper(strconv.FormatBool(data.Reachable)) + "[::-] [white]" + statusIcon +
-		"\nTalos:. " + talosColor + strings.ToUpper(strconv.FormatBool(I.IsTalos)) + "[::-] [white]" + talosIcon +
-		"\nKube Path:.. " + filepath.Base(I.Path) + "\n"
-
-	if data.Reachable {
-		information += "\nKubernetes:\nNodes:. " + strconv.Itoa(data.Nodes) + "\nPods:.. " + strconv.Itoa(data.Pods)
-		if data.TalosVersion != "" {
-			information += "\nOS:.... " + data.TalosVersion
-		}
-	}
-	if data.Status != "" {
-		information += "\n\nStatus: " + data.Status
-	}
-	if data.Test != "" {
-		information += "\n\n\nTests:. " + data.Test
-	}
-	return information
-}
-
-func (a *App) LoadEntities() error {
+func (a *App) LoadEntities() error { // need some changes or remove
 	a.Items = nil
 	entries, err := os.ReadDir(a.ConfigDir())
 	if err != nil {
@@ -191,11 +182,11 @@ func (a *App) LoadEntities() error {
 		if parent != "." && parent != "" {
 			name = filepath.Base(parent)
 		}
-		a.Items = append(a.Items, Item{Name: name, IsBack: true})
+		a.Items = append(a.Items, kcc.Item{Name: name, IsBack: true})
 
 	}
 	for _, entry := range entries {
-		var currentEntity Item
+		var currentEntity kcc.Item
 
 		if entry.IsDir() {
 			currentEntity.Name = entry.Name()
@@ -236,7 +227,7 @@ func (a *App) OpenItem(index int) {
 		err := a.LoadEntities()
 		if err != nil {
 			a.CurrentFolder = previousFolder
-			a.InfoData.SetText("[red]" + err.Error() + "[::-]")
+			a.InfoData.SetText(kcc.RedText(err.Error()))
 			return
 		}
 		a.RefreshConfigList()
@@ -247,22 +238,22 @@ func (a *App) OpenItem(index int) {
 		return
 	}
 	if item.IsConfig {
-		err := item.Apply(a.KubePath, a.TalosPath)
+		//err := item.Apply(a.KubePath, a.TalosPath)
 
-		if err != nil {
-			item.ClusterData.Status = "[red]Apply failed: " + err.Error() + "[::-]"
-			a.InfoData.SetText(item.InfoText())
-			return
-		}
+		//if err != nil {
+		//	item.ClusterData.Status = "[red]Apply failed: " + err.Error() + "[::-]"
+		a.InfoData.SetText(item.GetInfoText())
+		return
+		//}
 		a.UI.Stop()
 	}
 }
-func (a *App) RefreshConfigList() {
+func (a *App) RefreshConfigList() { // beholde
 	oldPosition := a.ConfigList.GetCurrentItem()
 	a.ConfigList.Clear()
 	for index := range a.Items {
 		itemIndex := index
-		a.ConfigList.AddItem(a.Items[index].DisplayName(), "", 0, func() { a.OpenItem(itemIndex) })
+		a.ConfigList.AddItem(a.Items[index].GetDisplayName(), "", 0, func() { a.OpenItem(itemIndex) })
 	}
 	count := a.ConfigList.GetItemCount()
 	if count == 0 {
@@ -281,14 +272,14 @@ func (a *App) RefreshConfigList() {
 
 func (a *App) RefreshClusterInfo() {
 	folder := a.CurrentFolder
-	items := make([]Item, len(a.Items))
+	items := make([]kcc.Item, len(a.Items))
 	copy(items, a.Items)
 	for index := range items {
 
 		if !items[index].IsConfig {
 			continue
 		}
-		_ = items[index].RefreshClusterInfo(a.TalosPath)
+		//_ = items[index].RefreshClusterInfo(a.TalosPath)
 	}
 
 	a.UI.QueueUpdateDraw(func() {
@@ -301,173 +292,173 @@ func (a *App) RefreshClusterInfo() {
 		a.RefreshConfigList()
 		if current >= 0 && current < len(a.Items) {
 			a.ConfigList.SetCurrentItem(current)
-			a.InfoData.SetText(a.Items[current].InfoText())
+			a.InfoData.SetText(a.Items[current].GetInfoText())
 		}
 	})
 }
 
-func (i *Item) Apply(kubePath, talosPath string) error {
-	if !i.IsConfig {
-		return fmt.Errorf("%s is not a config", i.Name)
-	}
+//func (i *Item) Apply(kubePath, talosPath string) error {
+//	if !i.IsConfig {
+//		return fmt.Errorf("%s is not a config", i.Name)
+//	}
+//
+//	dest := filepath.Join(kubePath, "config")
+//	backup := dest + ".kcc-backup"
+//	_ = os.Remove(backup)
+//
+//	if _, err := os.Stat(dest); err == nil {
+//		if err := os.Rename(dest, backup); err != nil {
+//			return err
+//		}
+//	} else if !os.IsNotExist(err) {
+//		return err
+//	}
+//
+//	if err := os.Link(i.Path, dest); err != nil {
+//		if _, backupErr := os.Stat(backup); backupErr == nil {
+//			_ = os.Rename(backup, dest)
+//		}
+//		return err
+//	}
+//	_ = os.Remove(backup)
+//	i.IsActive = true
+//
+//	//if i.IsTalos {
+//	//	talosSource := talosConfigPath(talosPath, i.FileName)
+//	//	talosDest := filepath.Join(talosPath, "config")
+//	//	_ = os.Remove(talosDest)
+//	//	_ = os.Link(talosSource, talosDest)
+//	//}
+//	return nil
+//}
 
-	dest := filepath.Join(kubePath, "config")
-	backup := dest + ".kcc-backup"
-	_ = os.Remove(backup)
+//func (a *App) RefreshClusterInfo(talosPath string) error {
+//	if !i.IsConfig || i.IsDir || i.IsBack {
+//		return nil
+//	}
+//
+//	i.ClusterData.Status = "[yellow]Getting info from cluster....[::-]"
+//
+//	if !i.ClusterData.Ping() {
+//		i.ClusterData.Status = "[red]Offline[::-]"
+//		return nil
+//	}
+//	kubeconfig, err := clientcmd.BuildConfigFromFlags("", i.Path)
+//	if err != nil {
+//		i.ClusterData.Status = "[red]Config error: " + err.Error() + "[::-]"
+//		return err
+//	}
+//	clientSet, err := kubernetes.NewForConfig(kubeconfig)
+//	if err != nil {
+//		i.ClusterData.Status = "[red]Client error: " + err.Error() + "[::-]"
+//		return err
+//	}
+//	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+//	defer cancel()
+//	nodes, err := clientSet.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
+//	if err != nil {
+//		i.ClusterData.Status = "[red]Node API error: " + err.Error() + "[::-]"
+//		return err
+//	}
+//	i.ClusterData.Nodes = len(nodes.Items)
+//	pods, err := clientSet.CoreV1().Pods("").List(ctx, metav1.ListOptions{})
+//	if err != nil {
+//		i.ClusterData.Status = "[red]Pod API error: " + err.Error() + "[::-]"
+//		return err
+//	}
+//	i.ClusterData.Pods = len(pods.Items)
+//
+//	//if i.IsTalos {
+//	//	i.ClusterData.TalosVersion = talosVersion(talosPath, i.FileName, i.ClusterData.Address)
+//	//}
+//
+//	i.ClusterData.Status = ""
+//	return nil
+//}
 
-	if _, err := os.Stat(dest); err == nil {
-		if err := os.Rename(dest, backup); err != nil {
-			return err
-		}
-	} else if !os.IsNotExist(err) {
-		return err
-	}
+//func talosVersion(talosPath, fileName, address string) string { // wil be removed
+//	talosConfig := talosConfigPath(talosPath, fileName)
+//	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+//	defer cancel()
+//	out, err := exec.CommandContext(ctx, "talosctl", "version",
+//		"--talosconfig", talosConfig, "--nodes", address, "--short").Output()
+//
+//	if err != nil {
+//		return ""
+//	}
+//	return strings.TrimSpace(string(out))
+//}
+//
+//func ensureConfigsDir(base string, required bool) error { // wil be removed
+//	if _, err := os.Stat(base); err != nil {
+//		if required {
+//			return err
+//		}
+//		return nil
+//	}
+//	configsPath := filepath.Join(base, "configs")
+//	if _, err := os.Stat(configsPath); err == nil {
+//		return nil
+//	} else if !os.IsNotExist(err) {
+//		return err
+//	}
+//
+//	if err := os.MkdirAll(configsPath, 0755); err != nil {
+//		return err
+//	}
+//
+//	data, err := os.ReadFile(filepath.Join(base, "config"))
+//	if err != nil {
+//		if required {
+//			return err
+//		}
+//		return nil
+//	}
+//	return os.WriteFile(filepath.Join(configsPath, "config"), data, 0644)
+//}
 
-	if err := os.Link(i.Path, dest); err != nil {
-		if _, backupErr := os.Stat(backup); backupErr == nil {
-			_ = os.Rename(backup, dest)
-		}
-		return err
-	}
-	_ = os.Remove(backup)
-	i.IsActive = true
+//func (a *App) EnsureConfigPath() error { // wil be removed
+//	if err := ensureConfigsDir(a.KubePath, true); err != nil {
+//		return err
+//	}
+//	return ensureConfigsDir(a.TalosPath, false)
+//}
 
-	if i.IsTalos {
-		talosSource := talosConfigPath(talosPath, i.FileName)
-		talosDest := filepath.Join(talosPath, "config")
-		_ = os.Remove(talosDest)
-		_ = os.Link(talosSource, talosDest)
-	}
-	return nil
-}
-
-func (i *Item) RefreshClusterInfo(talosPath string) error {
-	if !i.IsConfig || i.IsDir || i.IsBack {
-		return nil
-	}
-
-	i.ClusterData.Status = "[yellow]Getting info from cluster....[::-]"
-
-	if !i.ClusterData.Ping() {
-		i.ClusterData.Status = "[red]Offline[::-]"
-		return nil
-	}
-	kubeconfig, err := clientcmd.BuildConfigFromFlags("", i.Path)
-	if err != nil {
-		i.ClusterData.Status = "[red]Config error: " + err.Error() + "[::-]"
-		return err
-	}
-	clientSet, err := kubernetes.NewForConfig(kubeconfig)
-	if err != nil {
-		i.ClusterData.Status = "[red]Client error: " + err.Error() + "[::-]"
-		return err
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	nodes, err := clientSet.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
-	if err != nil {
-		i.ClusterData.Status = "[red]Node API error: " + err.Error() + "[::-]"
-		return err
-	}
-	i.ClusterData.Nodes = len(nodes.Items)
-	pods, err := clientSet.CoreV1().Pods("").List(ctx, metav1.ListOptions{})
-	if err != nil {
-		i.ClusterData.Status = "[red]Pod API error: " + err.Error() + "[::-]"
-		return err
-	}
-	i.ClusterData.Pods = len(pods.Items)
-
-	if i.IsTalos {
-		i.ClusterData.TalosVersion = talosVersion(talosPath, i.FileName, i.ClusterData.Address)
-	}
-
-	i.ClusterData.Status = ""
-	return nil
-}
-
-func talosVersion(talosPath, fileName, address string) string {
-	talosConfig := talosConfigPath(talosPath, fileName)
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	out, err := exec.CommandContext(ctx, "talosctl", "version",
-		"--talosconfig", talosConfig, "--nodes", address, "--short").Output()
-
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(out))
-}
-
-func ensureConfigsDir(base string, required bool) error {
-	if _, err := os.Stat(base); err != nil {
-		if required {
-			return err
-		}
-		return nil
-	}
-	configsPath := filepath.Join(base, "configs")
-	if _, err := os.Stat(configsPath); err == nil {
-		return nil
-	} else if !os.IsNotExist(err) {
-		return err
-	}
-
-	if err := os.MkdirAll(configsPath, 0755); err != nil {
-		return err
-	}
-
-	data, err := os.ReadFile(filepath.Join(base, "config"))
-	if err != nil {
-		if required {
-			return err
-		}
-		return nil
-	}
-	return os.WriteFile(filepath.Join(configsPath, "config"), data, 0644)
-}
-
-func (a *App) EnsureConfigPath() error {
-	if err := ensureConfigsDir(a.KubePath, true); err != nil {
-		return err
-	}
-	return ensureConfigsDir(a.TalosPath, false)
-}
-
-func (a *App) Import(ftype string, from string, to string) error {
-	source := from
-
-	if !filepath.IsAbs(source) {
-		dir, err := os.Getwd()
-		if err != nil {
-			return err
-		}
-		source = filepath.Join(dir, source)
-	}
-
-	var testItem Item
-	if slices.Contains([]string{"kube", "kubeconfig", "k8s"}, strings.ToLower(ftype)) {
-		err := testItem.Load(source)
-		if err != nil {
-			return fmt.Errorf("invalid kubeconfig: %w", err)
-		}
-
-		if !testItem.IsConfig {
-			return fmt.Errorf("%s is not a config file", source)
-		}
-
-		destination := filepath.Join(a.KubePath, "configs", to)
-		err = os.MkdirAll(filepath.Dir(destination), 0755)
-		if err != nil {
-			return err
-		}
-		file, err := os.ReadFile(source)
-		if err != nil {
-			return err
-		}
-		return os.WriteFile(destination, file, 0644)
-	}
-	return nil
-}
+//func (a *App) Import(ftype string, from string, to string) error { // wil be removed ish
+//	source := from
+//
+//	if !filepath.IsAbs(source) {
+//		dir, err := os.Getwd()
+//		if err != nil {
+//			return err
+//		}
+//		source = filepath.Join(dir, source)
+//	}
+//
+//	var testItem Item
+//	if slices.Contains([]string{"kube", "kubeconfig", "k8s"}, strings.ToLower(ftype)) {
+//		err := testItem.Load(source)
+//		if err != nil {
+//			return fmt.Errorf("invalid kubeconfig: %w", err)
+//		}
+//
+//		if !testItem.IsConfig {
+//			return fmt.Errorf("%s is not a config file", source)
+//		}
+//
+//		destination := filepath.Join(a.KubePath, "configs", to)
+//		err = os.MkdirAll(filepath.Dir(destination), 0755)
+//		if err != nil {
+//			return err
+//		}
+//		file, err := os.ReadFile(source)
+//		if err != nil {
+//			return err
+//		}
+//		return os.WriteFile(destination, file, 0644)
+//	}
+//	return nil
+//}
 
 func (a *App) HandleArgs(args []string) (bool, error) {
 	if len(args) == 0 {
@@ -505,9 +496,9 @@ func (a *App) HandleArgs(args []string) (bool, error) {
 }
 
 func (a *App) Run() error {
-	if err := a.EnsureConfigPath(); err != nil {
-		return err
-	}
+	//if err := a.EnsureConfigPath(); err != nil {
+	//	return err
+	//}
 
 	if err := a.LoadEntities(); err != nil {
 		return err
@@ -519,7 +510,7 @@ func (a *App) Run() error {
 		if index < 0 || index >= len(a.Items) {
 			return
 		}
-		a.InfoData.SetText(a.Items[index].InfoText())
+		a.InfoData.SetText(a.Items[index].GetInfoText())
 	})
 
 	a.RefreshConfigList()
@@ -530,12 +521,12 @@ func (a *App) Run() error {
 		case tcell.KeyF5:
 			for index := range a.Items { // need to change
 				if a.Items[index].IsConfig {
-					a.Items[index].ClusterData.Status = "[yellow]Getting info from cluster....[::-]"
+					a.Items[index].ClusterData.Status = kcc.YellowText("Getting info from cluster....")
 				}
 			}
 			current := a.ConfigList.GetCurrentItem()
 			if current >= 0 && current < len(a.Items) {
-				a.InfoData.SetText(a.Items[current].InfoText())
+				a.InfoData.SetText(a.Items[current].GetInfoText())
 			}
 			go a.RefreshClusterInfo()
 		case tcell.KeyBackspace, tcell.KeyEsc:
@@ -546,52 +537,52 @@ func (a *App) Run() error {
 	return a.UI.SetRoot(a.Grid, true).Run()
 }
 
-func (i *Item) Load(path string) error {
-	fileInfo, err := os.Stat(path)
-
-	if err != nil {
-		return err
-	}
-
-	i.Path = filepath.Clean(path)
-	i.FileName = fileInfo.Name()
-	i.Name = fileInfo.Name()
-
-	i.IsDir = fileInfo.IsDir()
-	i.IsConfig = false
-	if i.IsDir {
-		return nil
-	}
-	file, err := os.ReadFile(i.Path)
-	if err != nil {
-		return err
-	}
-	i.File = file
-	var config kube.KubeConfigInformation
-	if err := yaml.Unmarshal(file, &config); err != nil {
-		return err
-	}
-
-	if len(config.Clusters) == 0 {
-		return fmt.Errorf("config contains no clusters")
-	}
-
-	if len(config.Contexts) == 0 {
-		return fmt.Errorf("config contains no contexts")
-	}
-
-	i.Config = config
-	i.Name = config.Clusters[0].Name
-	i.IsConfig = true
-
-	i.ClusterData.User = config.Contexts[0].Context.User
-	i.ClusterData.Status = "[yellow]Getting info from cluster....[::-]"
-	err = i.ClusterData.SetServer(config.Clusters[0].Cluster.Server)
-	if err != nil {
-		return err
-	}
-	return nil
-}
+//func (i *Item) Load(path string) error { // will be removed
+//	fileInfo, err := os.Stat(path)
+//
+//	if err != nil {
+//		return err
+//	}
+//
+//	i.Path = filepath.Clean(path)
+//	i.FileName = fileInfo.Name()
+//	i.Name = fileInfo.Name()
+//
+//	i.IsDir = fileInfo.IsDir()
+//	i.IsConfig = false
+//	if i.IsDir {
+//		return nil
+//	}
+//	file, err := os.ReadFile(i.Path)
+//	if err != nil {
+//		return err
+//	}
+//	i.File = file
+//	var config kube.KubeConfigInformation
+//	if err := yaml.Unmarshal(file, &config); err != nil {
+//		return err
+//	}
+//
+//	if len(config.Clusters) == 0 {
+//		return fmt.Errorf("config contains no clusters")
+//	}
+//
+//	if len(config.Contexts) == 0 {
+//		return fmt.Errorf("config contains no contexts")
+//	}
+//
+//	i.Config = config
+//	i.Name = config.Clusters[0].Name
+//	i.IsConfig = true
+//
+//	i.ClusterData.User = config.Contexts[0].Context.User
+//	i.ClusterData.Status = kcc.YellowText("Getting info from cluster....")
+//	err = i.ClusterData.SetServer(config.Clusters[0].Cluster.Server)
+//	if err != nil {
+//		return err
+//	}
+//	return nil
+//}
 
 //func (i *Item) GetFile() ([]byte, error) {
 //	if !i.IsConfig || i.IsDir {

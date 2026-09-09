@@ -27,6 +27,9 @@ func KubePath() string {
 	}
 	return filepath.Join(UserHomeDir(), ".kube")
 }
+func KubeConfigPath() string {
+	return filepath.Join(KubePath(), "config")
+}
 func KubeConfigsPath() string {
 	Path := KubePath()
 	DirPath := filepath.Join(Path, "configs")
