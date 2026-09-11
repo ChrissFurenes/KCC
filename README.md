@@ -66,3 +66,22 @@ Your Kubernetes configuration directory should be structured as follows:
 - ~/.kube/config is the file used by kubectl and k9s
 
 - All files inside ``configs/`` **must** be valid Kubernetes kubeconfig files
+
+## Features coming soon
+- [X] supports folders
+- [ ] test if cluster is reachable
+- [ ] get num of pods
+- [ ] get num of nodes
+- [ ] get num of namespaces
+- [ ] get num of pod(s) in failure
+- [ ] posable to lock files in ``~/.kube/configs``
+  - [ ] use password or yubikey (passkey)
+- [ ] talos support
+  - [ ] match kube config and talos config based on info in files (must be in ``~/.kube/configs`` for kube configs and ``~/.talos/configs`` for talos configs)
+  - [ ] get talos version on client
+  - [ ] get talos version on nodes
+  - [ ] download talosctl version that is running on cluster
+  - [ ] find talosctl version(s) installed on client
+
+### Suggestions or problems? 
+open an issue :)
