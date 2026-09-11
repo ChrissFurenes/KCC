@@ -2,8 +2,10 @@ package kcc
 
 import (
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/chrissfurenes/kcc/cmd"
 	"github.com/chrissfurenes/kcc/kube"
@@ -21,6 +23,7 @@ type Item struct {
 	IsConfig    bool
 	IsActive    bool
 	IsTalos     bool
+	IsLocked    bool
 	IsBack      bool
 
 	Config      kube.KubeConfigInformation // hmmm
@@ -83,6 +86,15 @@ func (i *Item) GetInfoText() string {
 			"Path:.. " + i.Path + "\n" // to debugging
 	}
 	return i.InfoText
+}
+func Backup(version string) { // need to add file check so it don`t always create a backup folder
+	now := time.Now()
+	str1 := now.Format("02-01-2006_15-04-05")
+	err := os.Mkdir(filepath.Join(cmd.KubePath(), "backup__V_"+version+"__date_"+str1), 0777)
+	if err != nil {
+		panic(err)
+	}
+
 }
 
 func (i *Item) Apply() {
