@@ -81,7 +81,7 @@ func (i *Item) GetInfoText() string {
 		i.InfoText = "Name:.. " + i.Name + "\n\n" +
 			"User:.. " + i.ClusterData.User + "\n" +
 			"IP:.... " + i.ClusterData.Address + "\n" +
-			"Port:.. " + strconv.FormatInt(i.ClusterData.Port, 10) + "\n" +
+			"Port:.. " + i.ClusterData.Port + "\n" +
 			"Ping:.. " + strings.ToUpper(strconv.FormatBool(false)) + "\n" +
 			"Path:.. " + i.Path + "\n" // to debugging
 	}

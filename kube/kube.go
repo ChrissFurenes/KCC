@@ -37,7 +37,7 @@ type Kube struct {
 	CurrentFilePath string
 	User            string
 	Address         string
-	Port            int64
+	Port            string
 	Reachable       bool
 	Nodes           []string
 	Pods            int
@@ -49,7 +49,7 @@ type Kube struct {
 type ClusterData struct {
 	User         string
 	Address      string
-	Port         int64
+	Port         string
 	Reachable    bool
 	Nodes        int
 	Pods         int
@@ -138,7 +138,7 @@ func (k *Kube) GetClusterInfo() string {
 }
 
 func (c *ClusterData) Ping() bool {
-	address := net.JoinHostPort(c.Address, strconv.FormatInt(c.Port, 5))
+	address := net.JoinHostPort(c.Address, c.Port)
 
 	conn, err := net.DialTimeout("tcp", address, 2*time.Second)
 
@@ -160,16 +160,14 @@ func (c *ClusterData) SetServer(server string) error {
 	}
 
 	c.Address = u.Hostname()
-	c.Port, err = strconv.ParseInt(u.Port(), 10, 64)
-	if err != nil {
-		return err
-	}
-	if len(strconv.FormatInt(c.Port, 5)) <= 0 {
+	c.Port = u.Port()
+
+	if len(c.Port) <= 0 {
 		switch u.Scheme {
 		case "https":
-			c.Port = 443
+			c.Port = "443"
 		case "http":
-			c.Port = 80
+			c.Port = "80"
 		default:
 			return fmt.Errorf(
 				"server has no port: %s",
