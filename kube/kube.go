@@ -79,8 +79,10 @@ func (k *Kube) Init() error {
 	if err := yaml.Unmarshal(file, &k.KubeConfig); err != nil {
 		return err
 	}
+	kubeurl, _ := url.Parse(k.KubeConfig.Clusters[0].Cluster.Server)
 	k.ClusterName = k.KubeConfig.Clusters[0].Name
-	k.Address = k.KubeConfig.Clusters[0].Cluster.Server
+	k.Address = kubeurl.Hostname()
+	k.Port = kubeurl.Port()
 	k.User = k.KubeConfig.Contexts[0].Name
 	return nil
 }

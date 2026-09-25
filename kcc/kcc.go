@@ -82,7 +82,7 @@ func (i *Item) GetInfoText() string {
 			"User:.. " + i.ClusterData.User + "\n" +
 			"IP:.... " + i.ClusterData.Address + "\n" +
 			"Port:.. " + i.ClusterData.Port + "\n" +
-			"Ping:.. " + strings.ToUpper(strconv.FormatBool(false)) + "\n" +
+			"Ping:.. " + strings.ToUpper(strconv.FormatBool(false)) + "\n" + // needs to be fixed
 			"Path:.. " + i.Path + "\n" // to debugging
 	}
 	return i.InfoText
