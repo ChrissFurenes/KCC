@@ -191,6 +191,6 @@ func (k *Kube) IsCurrentCluster() bool {
 	}
 	return os.SameFile(readfile, currfile)
 }
-func ApplyConfig(path string) error {
+func ApplyConfig(path string) error { // TODO: fix this shit when [enter]
 	return nil
 }

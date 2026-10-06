@@ -43,6 +43,8 @@ func ImportConfig(from string, to string) error {
 	return nil
 }
 
+// TODO: make function to find coresponding talosconfig to kube konfig
+
 func (t *Talos) Validate(path string) error {
 	return nil
 }

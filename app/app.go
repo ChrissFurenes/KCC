@@ -80,7 +80,7 @@ func (a *App) GoBack() {
 	go a.RefreshClusterInfo()
 }
 
-func (a *App) LoadEntities() error { // need some changes or remove
+func (a *App) LoadEntities() error { // TODO: need some changes or remove
 	a.Items = nil
 	entries, err := os.ReadDir(a.ConfigDir())
 	if err != nil {
@@ -257,7 +257,7 @@ func (a *App) Run() error {
 	//	return err
 	//}
 	if strings.Contains(a.version, "beta") {
-		//kcc.Backup(a.version) // will be active in beta prod
+		//kcc.Backup(a.version) // TODO: will be active in beta prod
 	}
 	if err := a.LoadEntities(); err != nil {
 		return err
@@ -278,7 +278,7 @@ func (a *App) Run() error {
 	a.UI.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyF5:
-			for index := range a.Items { // need to change
+			for index := range a.Items { // TODO: need to change
 				if a.Items[index].IsConfig {
 					a.Items[index].ClusterData.Status = kcc.YellowText("Getting info from cluster....")
 				}

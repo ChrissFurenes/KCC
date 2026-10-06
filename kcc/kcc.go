@@ -40,7 +40,7 @@ func NewItem(file string) *Item {
 		File:     nil,
 		IsDir:    false,
 		IsConfig: true,
-		IsTalos:  TalosConfigExists(), // need to be fixed, but later me problem XD
+		IsTalos:  TalosConfigExists(), // TODO: need to be fixed, but later me problem XD
 		Config:   k.KubeConfig,
 	}
 
@@ -58,7 +58,7 @@ func TalosConfigExists() bool {
 	return false
 } // Later work
 
-func (i *Item) GetDisplayName() string { // Done
+func (i *Item) GetDisplayName() string { // DONE
 	if i.IsBack {
 		return " << Back to folder: " + i.Name
 	}
@@ -87,7 +87,7 @@ func (i *Item) GetInfoText() string {
 	}
 	return i.InfoText
 }
-func Backup(version string) { // need to add file check so it don`t always create a backup folder
+func Backup(version string) { // TODO: to add file check so it don`t always create a backup folder
 	now := time.Now()
 	str1 := now.Format("02-01-2006_15-04-05")
 	err := os.Mkdir(filepath.Join(cmd.KubePath(), "backup__V_"+version+"__date_"+str1), 0777)
