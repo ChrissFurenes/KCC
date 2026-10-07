@@ -2,6 +2,7 @@ package kube
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/url"
 	"os"
@@ -115,18 +116,24 @@ func ImportConfig(from string, to string) error {
 }
 
 func (k *Kube) Ping() {
-	address := net.JoinHostPort(k.Address, k.Port)
-	conn, err := net.DialTimeout("tcp", address, 2*time.Second)
-	if err != nil {
-		k.Reachable = false
-	}
-	defer func(conn net.Conn) {
-		err := conn.Close()
+	if k.Address != "" && k.Port != "" {
+		address := net.JoinHostPort(k.Address, k.Port)
+		conn, err := net.DialTimeout("tcp", address, 2*time.Second)
 		if err != nil {
-
+			fmt.Println(err)
+			k.Reachable = false
 		}
-	}(conn)
-	k.Reachable = true
+		defer func(conn net.Conn) {
+			err := conn.Close()
+			if err != nil {
+				fmt.Println(err)
+			}
+		}(conn)
+		k.Reachable = true
+	} else {
+		fmt.Println(k.Address)
+		fmt.Println(k.Port)
+	}
 }
 
 func (k *Kube) Validate(path string) error { // TODO: Needs to validate config

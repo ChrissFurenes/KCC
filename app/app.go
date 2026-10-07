@@ -29,8 +29,8 @@ type App struct {
 
 func NewApp(version string) *App { // OK
 	a := &App{
-		KubePath: cmd.KubePath(),
-		//TalosPath:     cmd.TalosPath(),
+		KubePath:      cmd.KubePath(),
+		TalosPath:     cmd.TalosPath(),
 		CurrentFolder: "",
 		UI:            tview.NewApplication(),
 		ConfigList:    tview.NewList().ShowSecondaryText(false),
@@ -137,7 +137,7 @@ func (a *App) OpenItem(index int) {
 		err := a.LoadEntities()
 		if err != nil {
 			a.CurrentFolder = previousFolder
-			a.InfoData.SetText(kcc.RedText(err.Error()))
+			a.InfoData.SetText(cmd.RedText(err.Error()))
 			return
 		}
 		a.RefreshConfigList()
@@ -189,6 +189,7 @@ func (a *App) RefreshClusterInfo() {
 		if !items[index].IsConfig {
 			continue
 		}
+		a.Items[index].Kube.Ping()
 		//_ = items[index].RefreshClusterInfo(a.TalosPath)
 	}
 
@@ -280,7 +281,7 @@ func (a *App) Run() error {
 		case tcell.KeyF5:
 			for index := range a.Items { // TODO: need to change
 				if a.Items[index].IsConfig {
-					a.Items[index].Kube.Status = kcc.YellowText("Getting info from cluster....")
+					a.Items[index].Kube.Status = cmd.YellowText("Getting info from cluster....")
 				}
 			}
 			current := a.ConfigList.GetCurrentItem()

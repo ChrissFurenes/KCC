@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"time"
 )
 
 func UserHomeDir() string {
@@ -187,4 +188,36 @@ func CreateIfNotExists(dir string, perm os.FileMode) error {
 	}
 
 	return nil
+}
+
+func Backup(version string) { // TODO: to add file check so it don`t always create a backup folder
+	now := time.Now()
+	str1 := now.Format("02-01-2006_15-04-05")
+	err := os.Mkdir(filepath.Join(KubePath(), "backup__V_"+version+"__date_"+str1), 0777)
+	if err != nil {
+		panic(err)
+	}
+
+}
+
+func RedText(text string) string {
+	return "[red]" + text + "[::-][white]"
+}
+func GreenText(text string) string {
+	return "[green]" + text + "[::-][white]"
+}
+func YellowText(text string) string {
+	return "[yellow]" + text + "[::-][white]"
+}
+func statusColorIcon(ok bool) (icon string) {
+	if ok {
+		return " 🟢"
+	}
+	return "🔴"
+}
+func StatusText(ok bool, text string) string {
+	if ok {
+		return GreenText(text) + statusColorIcon(ok)
+	}
+	return RedText(text) + statusColorIcon(ok)
 }
