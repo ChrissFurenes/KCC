@@ -189,7 +189,7 @@ func (a *App) RefreshClusterInfo() {
 		if !items[index].IsConfig {
 			continue
 		}
-		//items[index].Kube.Ping() // TODO FIX
+		items[index].Kube.Ping()
 		//_ = items[index].RefreshClusterInfo(a.TalosPath)
 	}
 
@@ -227,7 +227,7 @@ func (a *App) HandleArgs(args []string) (bool, error) {
 		return true, err
 
 	case "import", "i":
-		if len(args) != 3 {
+		if len(args) != 4 {
 			return true, fmt.Errorf("usage: kcc import [kube/talos] <from> <to>")
 		}
 		switch args[1] {

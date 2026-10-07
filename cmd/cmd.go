@@ -211,9 +211,9 @@ func YellowText(text string) string {
 }
 func statusColorIcon(ok bool) (icon string) {
 	if ok {
-		return " 🟢"
+		return "  🟢"
 	}
-	return "🔴"
+	return " 🔴"
 }
 func StatusText(ok bool, text string) string {
 	if ok {

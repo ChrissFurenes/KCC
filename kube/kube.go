@@ -118,13 +118,13 @@ func (k *Kube) Ping() {
 		address := net.JoinHostPort(k.Address, k.Port)
 		conn, err := net.DialTimeout("tcp", address, 2*time.Second)
 		if err != nil {
-			fmt.Println(err)
 			k.Reachable = false
+			return
 		}
 		defer func(conn net.Conn) {
 			err := conn.Close()
 			if err != nil {
-				fmt.Println(err)
+
 			}
 		}(conn)
 		k.Reachable = true

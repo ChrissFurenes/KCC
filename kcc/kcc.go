@@ -80,11 +80,15 @@ func (i *Item) GetInfoText() string {
 			"Port:.. " + i.Kube.Port + "\n" +
 			"Ping:.. " + i.PingText() + "\n" + // TODO: needs to be fixed
 			"Path:.. " + i.Path + "\n" // to debugging
-		if true { // TODO: Change to run when get info from cluster (nodes, pods ....)
+		if i.Kube.Reachable { // TODO: Change to run when get info from cluster (nodes, pods ....)
 			clusterinfo := "\n" +
-				"Nodes:." + i.Kube.Nodes + "\n" +
-				"Pods:.." + i.Kube.Pods + "\n\n" +
-				"Namespace:" + i.Kube.Namespaces + "\n"
+				"Nodes:....." + i.Kube.Nodes + "\n" +
+				"Pods:......" + i.Kube.Pods + "\n" +
+				"Namespace:." + i.Kube.Namespaces + "\n"
+			i.InfoText = i.InfoText + clusterinfo
+		} else {
+			clusterinfo := "\n" +
+				"Status: " + i.Kube.Status
 			i.InfoText = i.InfoText + clusterinfo
 		}
 	}
