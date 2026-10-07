@@ -1,7 +1,7 @@
 package kube
 
 import (
-	"fmt"
+	"context"
 	"net"
 	"net/url"
 	"os"
@@ -11,6 +11,10 @@ import (
 
 	"github.com/chrissfurenes/kcc/cmd"
 	"gopkg.in/yaml.v3"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 type KubeConfigInformation struct {
@@ -39,23 +43,14 @@ type Kube struct {
 	Address         string
 	Port            string
 	Reachable       bool
-	Nodes           []string
-	Pods            int
+	Nodes           string
+	Pods            string
+	Namespaces      string
+	Services        string
+	Kubeconfig      *rest.Config
+	Clientset       *kubernetes.Clientset
 	Status          string
 	KubeConfig      KubeConfigInformation
-	Cluster         ClusterData
-}
-
-type ClusterData struct {
-	User         string
-	Address      string
-	Port         string
-	Reachable    bool
-	Nodes        int
-	Pods         int
-	TalosVersion string
-	Status       string
-	Test         string
 }
 
 func NewKube(CurrentFilePath string) *Kube {
@@ -72,6 +67,10 @@ func NewKube(CurrentFilePath string) *Kube {
 
 func (k *Kube) Init() error {
 	var path = filepath.Clean(k.CurrentFilePath)
+	err := k.Validate(k.CurrentFilePath)
+	if err != nil {
+		return err
+	}
 	file, err := os.ReadFile(path)
 	if err != nil {
 		return err
@@ -84,6 +83,18 @@ func (k *Kube) Init() error {
 	k.Address = kubeurl.Hostname()
 	k.Port = kubeurl.Port()
 	k.User = k.KubeConfig.Contexts[0].Name
+
+	err = k.InitCluster()
+	if err != nil {
+		return err
+
+	}
+	//k.Ping()
+	if k.Reachable {
+		k.SetPods()
+		k.SetNodes()
+		k.SetNamespaces()
+	}
 	return nil
 }
 
@@ -103,12 +114,35 @@ func ImportConfig(from string, to string) error {
 	return nil
 }
 
-func (k *Kube) Ping() (bool, error) {
+func (k *Kube) Ping() {
+	address := net.JoinHostPort(k.Address, k.Port)
+	conn, err := net.DialTimeout("tcp", address, 2*time.Second)
+	if err != nil {
+		k.Reachable = false
+	}
+	defer func(conn net.Conn) {
+		err := conn.Close()
+		if err != nil {
 
-	return true, nil
+		}
+	}(conn)
+	k.Reachable = true
 }
 
-func (k *Kube) Validate(path string) error {
+func (k *Kube) Validate(path string) error { // TODO: Needs to validate config
+	return nil
+}
+func (k *Kube) InitCluster() error {
+	Kubeconfig, err := clientcmd.BuildConfigFromFlags("", k.CurrentFilePath)
+	if err != nil {
+		return err
+	}
+	k.Kubeconfig = Kubeconfig
+	Clientset, err := kubernetes.NewForConfig(k.Kubeconfig)
+	if err != nil {
+		return err
+	}
+	k.Clientset = Clientset
 	return nil
 }
 func (k *Kube) GetName() string {
@@ -116,18 +150,53 @@ func (k *Kube) GetName() string {
 }
 
 func (k *Kube) GetNodes() int {
-	return 0
+	nodes, err := k.Clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return 0
+	}
+	return len(nodes.Items)
 }
+func (k *Kube) SetNodes() {
+	k.Nodes = strconv.Itoa(k.GetNodes())
+}
+
 func (k *Kube) GetPods() int {
-	return 0
+	pods, err := k.Clientset.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return 0
+	}
+	return len(pods.Items)
+}
+func (k *Kube) SetPods() {
+	k.Pods = strconv.Itoa(k.GetPods())
 }
 func (k *Kube) GetNamespaces() int {
-	return 0
+	namespace, err := k.Clientset.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return 0
+	}
+	return len(namespace.Items)
+}
+func (k *Kube) SetNamespaces() {
+	k.Namespaces = strconv.Itoa(k.GetNamespaces())
 }
 func (k *Kube) GetControlplanes() int {
-	return 0
+	controlplane, err := k.Clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{}) // TODO: need testing
+	if err != nil {
+		return 0
+	}
+	return len(controlplane.Kind)
 }
-func (k *Kube) GetWorkers() int {
+
+func (k *Kube) GetServices() int {
+	services, err := k.Clientset.CoreV1().Services("").List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return 0
+	}
+	return len(services.Items)
+}
+
+func (k *Kube) GetWorkers() int { // TODO: add if posable
 	return 0
 }
 func (k *Kube) GetClusterInfo() string {
@@ -137,47 +206,6 @@ func (k *Kube) GetClusterInfo() string {
 	controlplanes := k.GetControlplanes()
 	workers := k.GetWorkers()
 	return strconv.Itoa(nodes) + strconv.Itoa(pods) + strconv.Itoa(namespaces) + strconv.Itoa(controlplanes) + strconv.Itoa(workers)
-}
-
-func (c *ClusterData) Ping() bool {
-	address := net.JoinHostPort(c.Address, c.Port)
-
-	conn, err := net.DialTimeout("tcp", address, 2*time.Second)
-
-	if err != nil {
-		c.Reachable = false
-		return false
-	}
-	defer conn.Close()
-	c.Reachable = true
-	return true
-}
-func (c *ClusterData) SetServer(server string) error {
-	u, err := url.Parse(server)
-	if err != nil {
-		return err
-	}
-	if u.Hostname() == "" {
-		return fmt.Errorf("invalid server address: %s", server)
-	}
-
-	c.Address = u.Hostname()
-	c.Port = u.Port()
-
-	if len(c.Port) <= 0 {
-		switch u.Scheme {
-		case "https":
-			c.Port = "443"
-		case "http":
-			c.Port = "80"
-		default:
-			return fmt.Errorf(
-				"server has no port: %s",
-				server,
-			)
-		}
-	}
-	return nil
 }
 
 func (k *Kube) IsCurrentCluster() bool {

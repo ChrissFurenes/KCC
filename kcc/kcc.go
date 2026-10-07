@@ -3,8 +3,6 @@ package kcc
 import (
 	"os"
 	"path/filepath"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/chrissfurenes/kcc/cmd"
@@ -25,9 +23,9 @@ type Item struct {
 	IsTalos     bool
 	IsLocked    bool
 	IsBack      bool
-
-	Config      kube.KubeConfigInformation // hmmm
-	ClusterData kube.ClusterData           // hmmm
+	
+	Kube  kube.Kube
+	Talos talos.Talos
 }
 
 func NewItem(file string) *Item {
@@ -41,7 +39,7 @@ func NewItem(file string) *Item {
 		IsDir:    false,
 		IsConfig: true,
 		IsTalos:  TalosConfigExists(), // TODO: need to be fixed, but later me problem XD
-		Config:   k.KubeConfig,
+		//Config:   k.KubeConfig,
 	}
 
 }
@@ -79,11 +77,18 @@ func (i *Item) GetDisplayName() string { // DONE
 func (i *Item) GetInfoText() string {
 	if i.IsConfig {
 		i.InfoText = "Name:.. " + i.Name + "\n\n" +
-			"User:.. " + i.ClusterData.User + "\n" +
-			"IP:.... " + i.ClusterData.Address + "\n" +
-			"Port:.. " + i.ClusterData.Port + "\n" +
-			"Ping:.. " + strings.ToUpper(strconv.FormatBool(false)) + "\n" + // needs to be fixed
+			"User:.. " + i.Kube.User + "\n" +
+			"IP:.... " + i.Kube.Address + "\n" +
+			"Port:.. " + i.Kube.Port + "\n" +
+			"Ping:.. " + i.PingText() + "\n" + // TODO: needs to be fixed
 			"Path:.. " + i.Path + "\n" // to debugging
+		if true {                      // TODO: Change to run when get info from cluster (nodes, pods ....)
+			clusterinfo := "\n" +
+				"Nodes:." + i.Kube.Nodes + "\n" +
+				"Pods:.." + i.Kube.Pods + "\n\n" +
+				"Namespace:" + i.Kube.Namespaces + "\n"
+			i.InfoText = i.InfoText + clusterinfo
+		}
 	}
 	return i.InfoText
 }
@@ -114,17 +119,29 @@ func (i *Item) IsCurrentItem() bool {
 }
 
 func RedText(text string) string {
-	return "[red]" + text + "[::-]"
+	return "[red]" + text + "[::-][white]"
 }
 func GreenText(text string) string {
-	return "[green]" + text + "[::-]"
+	return "[green]" + text + "[::-][white]"
 }
 func YellowText(text string) string {
-	return "[yellow]" + text + "[::-]"
+	return "[yellow]" + text + "[::-][white]"
 }
-func statusColorIcon(ok bool) (color, icon string) {
+func statusColorIcon(ok bool) (icon string) {
 	if ok {
-		return "[green]", " 🟢"
+		return " 🟢"
 	}
-	return "[red]", "🔴"
+	return "🔴"
+}
+func statusText(ok bool, text string) string {
+	if ok {
+		return GreenText(text) + statusColorIcon(ok)
+	}
+	return RedText(text) + statusColorIcon(ok)
+}
+func (i *Item) PingText() string {
+	if i.Kube.Reachable {
+		return statusText(true, "TRUE")
+	}
+	return statusText(false, "FALSE")
 }

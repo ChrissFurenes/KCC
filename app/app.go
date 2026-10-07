@@ -109,11 +109,11 @@ func (a *App) LoadEntities() error { // TODO: need some changes or remove
 			currentEntity.FileName = entry.Name()
 			currentEntity.IsDir = false
 			currentEntity.IsConfig = true
-			currentEntity.ClusterData.Address = k.Address
-			currentEntity.ClusterData.Port = k.Port
-			currentEntity.ClusterData.Reachable = k.Reachable
-			currentEntity.ClusterData.Status = k.Status
-			currentEntity.ClusterData.User = k.User
+			currentEntity.Kube.Address = k.Address
+			currentEntity.Kube.Port = k.Port
+			currentEntity.Kube.Reachable = k.Reachable
+			currentEntity.Kube.Status = k.Status
+			currentEntity.Kube.User = k.User
 		}
 		a.Items = append(a.Items, currentEntity)
 	}
@@ -125,7 +125,7 @@ func (a *App) OpenItem(index int) {
 	if index < 0 || index >= len(a.Items) {
 		return
 	}
-	item := &a.Items[index]
+	item := a.Items[index]
 	if item.IsBack {
 		a.GoBack()
 		return
@@ -153,7 +153,7 @@ func (a *App) OpenItem(index int) {
 		//if err != nil {
 		//	item.ClusterData.Status = "[red]Apply failed: " + err.Error() + "[::-]"
 		a.InfoData.SetText(item.GetInfoText())
-		return
+		//return
 		//}
 		a.UI.Stop()
 	}
@@ -280,7 +280,7 @@ func (a *App) Run() error {
 		case tcell.KeyF5:
 			for index := range a.Items { // TODO: need to change
 				if a.Items[index].IsConfig {
-					a.Items[index].ClusterData.Status = kcc.YellowText("Getting info from cluster....")
+					a.Items[index].Kube.Status = kcc.YellowText("Getting info from cluster....")
 				}
 			}
 			current := a.ConfigList.GetCurrentItem()
