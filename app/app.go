@@ -102,7 +102,7 @@ func (a *App) LoadEntities() error { // TODO: need some changes or remove
 			currentEntity.Name = entry.Name()
 			currentEntity.IsDir = true
 
-		} else {
+		} else { // TODO Need to validate
 			k := kube.NewKube(filepath.Join(a.ConfigDir(), entry.Name()))
 			currentEntity.Name = k.GetName()
 			currentEntity.Path = filepath.Join(a.ConfigDir(), entry.Name())
@@ -189,7 +189,7 @@ func (a *App) RefreshClusterInfo() {
 		if !items[index].IsConfig {
 			continue
 		}
-		a.Items[index].Kube.Ping()
+		//items[index].Kube.Ping() // TODO FIX
 		//_ = items[index].RefreshClusterInfo(a.TalosPath)
 	}
 
