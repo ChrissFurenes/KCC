@@ -1,7 +1,6 @@
 package kube
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"net/url"
@@ -12,7 +11,6 @@ import (
 
 	"github.com/chrissfurenes/kcc/cmd"
 	"gopkg.in/yaml.v3"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -152,67 +150,17 @@ func (k *Kube) InitCluster() error {
 	k.Clientset = Clientset
 	return nil
 }
-func (k *Kube) GetName() string {
-	return k.ClusterName
-}
 
-func (k *Kube) GetNodes() int {
-	nodes, err := k.Clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return 0
-	}
-	return len(nodes.Items)
-}
 func (k *Kube) SetNodes() {
 	k.Nodes = strconv.Itoa(k.GetNodes())
 }
 
-func (k *Kube) GetPods() int {
-	pods, err := k.Clientset.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return 0
-	}
-	return len(pods.Items)
-}
 func (k *Kube) SetPods() {
 	k.Pods = strconv.Itoa(k.GetPods())
 }
-func (k *Kube) GetNamespaces() int {
-	namespace, err := k.Clientset.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return 0
-	}
-	return len(namespace.Items)
-}
+
 func (k *Kube) SetNamespaces() {
 	k.Namespaces = strconv.Itoa(k.GetNamespaces())
-}
-func (k *Kube) GetControlplanes() int {
-	controlplane, err := k.Clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{}) // TODO: need testing
-	if err != nil {
-		return 0
-	}
-	return len(controlplane.Kind)
-}
-
-func (k *Kube) GetServices() int {
-	services, err := k.Clientset.CoreV1().Services("").List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return 0
-	}
-	return len(services.Items)
-}
-
-func (k *Kube) GetWorkers() int { // TODO: add if posable
-	return 0
-}
-func (k *Kube) GetClusterInfo() string {
-	nodes := k.GetNodes()
-	pods := k.GetPods()
-	namespaces := k.GetNamespaces()
-	controlplanes := k.GetControlplanes()
-	workers := k.GetWorkers()
-	return strconv.Itoa(nodes) + strconv.Itoa(pods) + strconv.Itoa(namespaces) + strconv.Itoa(controlplanes) + strconv.Itoa(workers)
 }
 
 func (k *Kube) IsCurrentCluster() bool {
