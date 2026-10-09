@@ -14,6 +14,8 @@ type Item struct {
 	FileName    string
 	DisplayName string
 	InfoText    string
+	Status      string
+	StatusText  string
 	File        []byte
 	IsDir       bool
 	IsConfig    bool
@@ -25,6 +27,8 @@ type Item struct {
 	Kube  kube.Kube
 	Talos talos.Talos
 }
+
+//spinner := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 
 func NewItem(file string) *Item {
 	k := NewKubeConfig(file)

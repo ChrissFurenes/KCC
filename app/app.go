@@ -11,6 +11,7 @@ import (
 	"github.com/chrissfurenes/kcc/kube"
 	"github.com/chrissfurenes/kcc/talos"
 	"github.com/gdamore/tcell/v2"
+	"github.com/mattn/go-runewidth"
 	"github.com/rivo/tview"
 )
 
@@ -158,12 +159,37 @@ func (a *App) OpenItem(index int) {
 		a.UI.Stop()
 	}
 }
+func addLine(view *tview.TextView, left, right string) string {
+	_, _, width, _ := view.GetInnerRect()
+
+	leftWidth := runewidth.StringWidth(left)
+	rightWidth := runewidth.StringWidth(right)
+
+	spaces := width - leftWidth - rightWidth
+
+	if spaces < 1 {
+		spaces = 1
+	}
+
+	return left + strings.Repeat(" ", spaces) + right
+}
 func (a *App) RefreshConfigList() { // beholde
 	oldPosition := a.ConfigList.GetCurrentItem()
 	a.ConfigList.Clear()
 	for index := range a.Items {
 		itemIndex := index
-		a.ConfigList.AddItem(a.Items[index].GetDisplayName(), "", 0, func() { a.OpenItem(itemIndex) })
+		//a.Items[index].StatusText = "🔴"
+		if a.Items[index].Kube.Reachable {
+			a.Items[index].StatusText = "🟢"
+		}
+		displayName := ""
+		if !a.Items[index].IsDir && !a.Items[index].IsBack {
+			displayName = addLine(a.InfoData, a.Items[index].GetDisplayName(), a.Items[index].StatusText)
+		} else {
+			displayName = a.Items[index].GetDisplayName()
+		}
+
+		a.ConfigList.AddItem(displayName, "", 0, func() { a.OpenItem(itemIndex) })
 	}
 	count := a.ConfigList.GetItemCount()
 	if count == 0 {
@@ -282,6 +308,7 @@ func (a *App) Run() error {
 			for index := range a.Items { // TODO: need to change
 				if a.Items[index].IsConfig {
 					a.Items[index].Kube.Status = cmd.YellowText("Getting info from cluster....")
+					a.Items[index].StatusText = "🟡"
 				}
 			}
 			current := a.ConfigList.GetCurrentItem()
