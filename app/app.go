@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/chrissfurenes/kcc/cmd"
 	"github.com/chrissfurenes/kcc/kcc"
@@ -16,6 +17,7 @@ import (
 )
 
 type App struct {
+	refreshMu     sync.Mutex
 	version       string
 	Items         []kcc.Item
 	KubePath      string
@@ -51,7 +53,7 @@ func NewApp(version string) *App { // OK
 }
 
 func (a *App) ConfigDir() string { // needs change
-	return filepath.Join(a.KubePath, "configs", a.CurrentFolder)
+	return filepath.Join(cmd.KubeConfigsPath(), a.CurrentFolder)
 }
 
 func (a *App) GoBack() {
@@ -109,6 +111,7 @@ func (a *App) LoadEntities() error { // TODO: need some changes or remove
 			currentEntity.Path = filepath.Join(a.ConfigDir(), entry.Name())
 			currentEntity.FileName = entry.Name()
 			currentEntity.IsDir = false
+			currentEntity.StatusText = "🟡"
 			currentEntity.IsConfig = true
 			currentEntity.Kube.Address = k.Address
 			currentEntity.Kube.Port = k.Port
@@ -165,11 +168,7 @@ func addLine(view *tview.TextView, left, right string) string {
 	leftWidth := runewidth.StringWidth(left)
 	rightWidth := runewidth.StringWidth(right)
 
-	spaces := width - leftWidth - rightWidth
-
-	if spaces < 1 {
-		spaces = 1
-	}
+	spaces := max((width-leftWidth-rightWidth)-2, 1)
 
 	return left + strings.Repeat(" ", spaces) + right
 }
@@ -203,38 +202,47 @@ func (a *App) RefreshConfigList() { // beholde
 }
 
 func (a *App) RefreshClusterInfo() {
+	a.refreshMu.Lock()
+	defer a.refreshMu.Unlock()
 	folder := a.CurrentFolder
-	items := make([]kcc.Item, len(a.Items))
-	copy(items, a.Items)
+	items := append([]kcc.Item(nil), a.Items...)
 	for index := range items {
-
 		if !items[index].IsConfig {
 			continue
 		}
 		a.Items[index].StatusText = "🟡"
-		a.RefreshConfigList()
-		if items[index].Kube.Ping() {
-			a.Items[index].StatusText = "🟢"
+		a.UI.QueueUpdateDraw(func() {
+			if a.CurrentFolder != folder || len(a.Items) != len(items) {
+				return
+			}
+			a.Items[index].Kube.Reachable = items[index].Kube.Reachable
+			a.Items[index].StatusText = items[index].StatusText
+			current := a.ConfigList.GetCurrentItem()
+			a.RefreshConfigList()
+			if current >= 0 && current < len(a.Items) {
+				a.InfoData.SetText(a.Items[current].GetInfoText())
+			}
+		})
+		reachable := items[index].Kube.Ping()
+		items[index].Kube.Reachable = reachable
+		if reachable {
+			items[index].StatusText = "🟢"
 		} else {
-			a.Items[index].StatusText = "🔴"
+			items[index].StatusText = "🔴"
 		}
-		a.RefreshConfigList()
-		//_ = items[index].RefreshClusterInfo(a.TalosPath)
+		a.UI.QueueUpdateDraw(func() {
+			if a.CurrentFolder != folder || len(a.Items) != len(items) {
+				return
+			}
+			a.Items[index].Kube.Reachable = items[index].Kube.Reachable
+			a.Items[index].StatusText = items[index].StatusText
+			current := a.ConfigList.GetCurrentItem()
+			a.RefreshConfigList()
+			if current >= 0 && current < len(a.Items) {
+				a.InfoData.SetText(a.Items[current].GetInfoText())
+			}
+		})
 	}
-
-	a.UI.QueueUpdateDraw(func() {
-		if folder != a.CurrentFolder {
-			return
-		}
-
-		current := a.ConfigList.GetCurrentItem()
-		a.Items = items
-		a.RefreshConfigList()
-		if current >= 0 && current < len(a.Items) {
-			a.ConfigList.SetCurrentItem(current)
-			a.InfoData.SetText(a.Items[current].GetInfoText())
-		}
-	})
 }
 
 func (a *App) HandleArgs(args []string) (bool, error) {

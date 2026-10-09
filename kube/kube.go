@@ -53,15 +53,22 @@ type Kube struct {
 }
 
 func NewKube(CurrentFilePath string) *Kube {
+	k, err := LoadKube(CurrentFilePath)
+	if err != nil {
+		return &Kube{CurrentFilePath: CurrentFilePath, Status: err.Error()}
+	}
+	return k
+}
+
+func LoadKube(CurrentFilePath string) (*Kube, error) {
 	k := &Kube{
 		KubePath:        cmd.KubePath(),
 		CurrentFilePath: CurrentFilePath,
 	}
-	err := k.Init()
-	if err != nil {
-		panic(err)
+	if err := k.Init(); err != nil {
+		return nil, err
 	}
-	return k
+	return k, nil
 }
 
 func (k *Kube) Init() error {
@@ -77,10 +84,23 @@ func (k *Kube) Init() error {
 	if err := yaml.Unmarshal(file, &k.KubeConfig); err != nil {
 		return err
 	}
-	kubeurl, _ := url.Parse(k.KubeConfig.Clusters[0].Cluster.Server)
+	if len(k.KubeConfig.Clusters) == 0 || len(k.KubeConfig.Contexts) == 0 {
+		return fmt.Errorf("invalid kubeconfig %s: missing clusters or contexts", path)
+	}
+	kubeurl, err := url.Parse(k.KubeConfig.Clusters[0].Cluster.Server)
+	if err != nil || kubeurl.Hostname() == "" {
+		return fmt.Errorf("invalid API server URL in %s", path)
+	}
 	k.ClusterName = k.KubeConfig.Clusters[0].Name
 	k.Address = kubeurl.Hostname()
 	k.Port = kubeurl.Port()
+	if k.Port == "" {
+		if kubeurl.Scheme == "https" {
+			k.Port = "443"
+		} else {
+			k.Port = "80"
+		}
+	}
 	k.User = k.KubeConfig.Contexts[0].Name
 
 	err = k.InitCluster()
@@ -102,15 +122,13 @@ func (k *Kube) ConfigDir() string {
 }
 
 func ImportConfig(from string, to string) error {
-	source := from
-	if !filepath.IsAbs(source) {
-		dir, err := os.Getwd()
-		if err != nil {
-			return err
-		}
-		source = filepath.Join(dir, source)
+	if to == "" || filepath.IsAbs(to) || filepath.Base(to) != to || to == "." || to == ".." {
+		return fmt.Errorf("invalid destination filename: %q", to)
 	}
-	return nil
+	if _, err := os.Stat(from); err != nil {
+		return err
+	}
+	return cmd.Copy(from, filepath.Join(cmd.KubeConfigsPath(), to))
 }
 
 func (k *Kube) Ping() bool {
@@ -131,8 +149,7 @@ func (k *Kube) Ping() bool {
 		return true
 	}
 
-	fmt.Println(k.Address)
-	fmt.Println(k.Port)
+	k.Reachable = false
 	return false
 }
 

@@ -2,7 +2,8 @@ package kube
 
 import (
 	"context"
-	"strconv"
+	"fmt"
+	_ "strconv"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -45,14 +46,24 @@ func (k *Kube) GetClusterInfo() string {
 	namespaces := k.GetNamespaces()
 	controlplanes := k.GetControlplanes()
 	workers := k.GetWorkers()
-	return strconv.Itoa(nodes) + strconv.Itoa(pods) + strconv.Itoa(namespaces) + strconv.Itoa(controlplanes) + strconv.Itoa(workers)
+	return fmt.Sprintf("Nodes: %d, Pods: %d, Namespaces: %d, Control planes: %d, Workers: %d", nodes, pods, namespaces, controlplanes, workers)
 }
 func (k *Kube) GetControlplanes() int {
 	controlplane, err := k.Clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{}) // TODO: need testing
 	if err != nil {
 		return 0
 	}
-	return len(controlplane.Kind)
+	total := 0
+	for _, node := range controlplane.Items {
+		if _, ok := node.Labels["node-role.kubernetes.io/control-plane"]; ok {
+			total++
+			continue
+		}
+		if _, ok := node.Labels["node-role.kubernetes.io/master"]; ok {
+			total++
+		}
+	}
+	return total
 }
 
 func (k *Kube) GetWorkers() int { // TODO: add if posable

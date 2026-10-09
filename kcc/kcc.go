@@ -47,11 +47,12 @@ func NewItem(file string) *Item {
 }
 
 func NewKubeConfig(kubefile string) *kube.Kube {
-	k := NewKubeConfig(kubefile)
+	k := kube.NewKube(kubefile)
 	return k
 }
 func NewTalosConfig(talosfile string) *talos.Talos {
-	t := NewTalosConfig(talosfile)
+	t := talos.NewTalos()
+	t.TalosPath = talosfile
 	return t
 }
 func TalosConfigExists() bool {

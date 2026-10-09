@@ -75,7 +75,7 @@ func TestFolder(name string) error {
 }
 
 func CreateFolder(name string) error {
-	return os.Mkdir(name, 0600)
+	return os.MkdirAll(name, 0700)
 }
 
 func CreateBackup() error {
@@ -155,7 +155,7 @@ func copyDir(srcDir string, dstDir string) error {
 		}
 		switch fileInfo.Mode() & os.ModeType {
 		case os.ModeDir:
-			if err := CreateIfNotExists(dstPath, 0600); err != nil {
+			if err := CreateIfNotExists(dstPath, 0700); err != nil {
 				return err
 			}
 			if err := copyDir(srcPath, dstPath); err != nil {
