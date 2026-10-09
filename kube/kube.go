@@ -113,13 +113,13 @@ func ImportConfig(from string, to string) error {
 	return nil
 }
 
-func (k *Kube) Ping() {
+func (k *Kube) Ping() bool {
 	if k.Address != "" && k.Port != "" {
 		address := net.JoinHostPort(k.Address, k.Port)
 		conn, err := net.DialTimeout("tcp", address, 2*time.Second)
 		if err != nil {
 			k.Reachable = false
-			return
+			return false
 		}
 		defer func(conn net.Conn) {
 			err := conn.Close()
@@ -128,10 +128,12 @@ func (k *Kube) Ping() {
 			}
 		}(conn)
 		k.Reachable = true
-	} else {
-		fmt.Println(k.Address)
-		fmt.Println(k.Port)
+		return true
 	}
+
+	fmt.Println(k.Address)
+	fmt.Println(k.Port)
+	return false
 }
 
 func (k *Kube) Validate(path string) error { // TODO: Needs to validate config

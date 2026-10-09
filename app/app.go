@@ -178,10 +178,6 @@ func (a *App) RefreshConfigList() { // beholde
 	a.ConfigList.Clear()
 	for index := range a.Items {
 		itemIndex := index
-		//a.Items[index].StatusText = "🔴"
-		if a.Items[index].Kube.Reachable {
-			a.Items[index].StatusText = "🟢"
-		}
 		displayName := ""
 		if !a.Items[index].IsDir && !a.Items[index].IsBack {
 			displayName = addLine(a.InfoData, a.Items[index].GetDisplayName(), a.Items[index].StatusText)
@@ -215,7 +211,14 @@ func (a *App) RefreshClusterInfo() {
 		if !items[index].IsConfig {
 			continue
 		}
-		items[index].Kube.Ping()
+		a.Items[index].StatusText = "🟡"
+		a.RefreshConfigList()
+		if items[index].Kube.Ping() {
+			a.Items[index].StatusText = "🟢"
+		} else {
+			a.Items[index].StatusText = "🔴"
+		}
+		a.RefreshConfigList()
 		//_ = items[index].RefreshClusterInfo(a.TalosPath)
 	}
 
