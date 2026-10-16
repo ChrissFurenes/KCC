@@ -2,6 +2,8 @@ package kcc
 
 import (
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/chrissfurenes/kcc/cmd"
 	"github.com/chrissfurenes/kcc/kube"
@@ -46,13 +48,11 @@ func NewItem(file string) *Item {
 
 }
 
-func NewKubeConfig(kubefile string) *kube.Kube {
-	k := NewKubeConfig(kubefile)
-	return k
+func NewKubeConfig(kubefile string) *kube.Kube { // NEW. TODO: FIX this
+	return kube.NewKube(kubefile)
 }
-func NewTalosConfig(talosfile string) *talos.Talos {
-	t := NewTalosConfig(talosfile)
-	return t
+func NewTalosConfig(talosfile string) *talos.Talos { // NEW. TODO: FIX this
+	return talos.NewTalos() // talos.NewTalos(talosfile)
 }
 func TalosConfigExists() bool {
 	return false
@@ -82,13 +82,13 @@ func (i *Item) GetInfoText() string {
 			"User:.. " + i.Kube.User + "\n" +
 			"IP:.... " + i.Kube.Address + "\n" +
 			"Port:.. " + i.Kube.Port + "\n" +
-			"Ping:.. " + i.PingText() + "\n" + // TODO: needs to be fixed
+			"Ping:.. " + strings.ToUpper(strconv.FormatBool(i.Kube.Reachable)) + "\n" + // TODO: needs to be fixed
 			"Path:.. " + i.Path + "\n" // to debugging
 		if i.Kube.Reachable { // TODO: Change to run when get info from cluster (nodes, pods ....)
 			clusterinfo := "\n" +
-				"Nodes:....." + i.Kube.Nodes + "\n" +
-				"Pods:......" + i.Kube.Pods + "\n" +
-				"Namespace:." + i.Kube.Namespaces + "\n"
+				"Nodes:..... " + i.Kube.Nodes + "\n" +
+				"Pods:...... " + i.Kube.Pods + "\n" +
+				"Namespace:. " + i.Kube.Namespaces + "\n"
 			i.InfoText = i.InfoText + clusterinfo
 		} else {
 			clusterinfo := "\n" +
@@ -121,3 +121,5 @@ func (i *Item) PingText() string {
 	}
 	return cmd.StatusText(false, "FALSE")
 }
+
+///////////////

@@ -59,7 +59,7 @@ func NewKube(CurrentFilePath string) *Kube {
 	}
 	err := k.Init()
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
 	}
 	return k
 }
@@ -88,7 +88,7 @@ func (k *Kube) Init() error {
 		return err
 
 	}
-	//k.Ping()
+	k.Ping()
 	if k.Reachable {
 		k.SetPods()
 		k.SetNodes()
@@ -131,8 +131,8 @@ func (k *Kube) Ping() bool {
 		return true
 	}
 
-	fmt.Println(k.Address)
-	fmt.Println(k.Port)
+	//.Println(k.Address)
+	//fmt.Println(k.Port)
 	return false
 }
 

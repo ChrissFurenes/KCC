@@ -104,17 +104,19 @@ func (a *App) LoadEntities() error { // TODO: need some changes or remove
 			currentEntity.IsDir = true
 
 		} else { // TODO Need to validate
-			k := kube.NewKube(filepath.Join(a.ConfigDir(), entry.Name()))
-			currentEntity.Name = k.GetName()
+			kc := kcc.NewKubeConfig(filepath.Join(a.ConfigDir(), entry.Name()))
+
+			//k := kube.NewKube(filepath.Join(a.ConfigDir(), entry.Name()))
+			currentEntity.Name = kc.GetName()
 			currentEntity.Path = filepath.Join(a.ConfigDir(), entry.Name())
 			currentEntity.FileName = entry.Name()
 			currentEntity.IsDir = false
 			currentEntity.IsConfig = true
-			currentEntity.Kube.Address = k.Address
-			currentEntity.Kube.Port = k.Port
-			currentEntity.Kube.Reachable = k.Reachable
-			currentEntity.Kube.Status = k.Status
-			currentEntity.Kube.User = k.User
+			currentEntity.Kube.Address = kc.Address
+			currentEntity.Kube.Port = kc.Port
+			currentEntity.Kube.Reachable = kc.Reachable
+			currentEntity.Kube.Status = kc.Status
+			currentEntity.Kube.User = kc.User
 		}
 		a.Items = append(a.Items, currentEntity)
 	}
@@ -159,7 +161,7 @@ func (a *App) OpenItem(index int) {
 		a.UI.Stop()
 	}
 }
-func addLine(view *tview.TextView, left, right string) string {
+func addLine(view *tview.TextView, left, right string) string { // TODO: NEED fixing
 	_, _, width, _ := view.GetInnerRect()
 
 	leftWidth := runewidth.StringWidth(left)
@@ -179,11 +181,8 @@ func (a *App) RefreshConfigList() { // beholde
 	for index := range a.Items {
 		itemIndex := index
 		displayName := ""
-		if !a.Items[index].IsDir && !a.Items[index].IsBack {
-			displayName = addLine(a.InfoData, a.Items[index].GetDisplayName(), a.Items[index].StatusText)
-		} else {
-			displayName = a.Items[index].GetDisplayName()
-		}
+
+		displayName = a.Items[index].GetDisplayName()
 
 		a.ConfigList.AddItem(displayName, "", 0, func() { a.OpenItem(itemIndex) })
 	}
@@ -206,35 +205,32 @@ func (a *App) RefreshClusterInfo() {
 	folder := a.CurrentFolder
 	items := make([]kcc.Item, len(a.Items))
 	copy(items, a.Items)
-	for index := range items {
-
-		if !items[index].IsConfig {
-			continue
-		}
-		a.Items[index].StatusText = "🟡"
-		a.RefreshConfigList()
-		if items[index].Kube.Ping() {
-			a.Items[index].StatusText = "🟢"
-		} else {
-			a.Items[index].StatusText = "🔴"
-		}
-		a.RefreshConfigList()
-		//_ = items[index].RefreshClusterInfo(a.TalosPath)
+	for index := range a.Items {
+		item := items[index]
+		item.Kube.Ping()
 	}
-
 	a.UI.QueueUpdateDraw(func() {
 		if folder != a.CurrentFolder {
 			return
 		}
-
-		current := a.ConfigList.GetCurrentItem()
-		a.Items = items
-		a.RefreshConfigList()
-		if current >= 0 && current < len(a.Items) {
-			a.ConfigList.SetCurrentItem(current)
-			a.InfoData.SetText(a.Items[current].GetInfoText())
-		}
 	})
+
+	//for index := range items { // TODO: NEED Fixing.
+	//
+	//	if !items[index].IsConfig {
+	//		continue
+	//	}
+	//
+	//	a.RefreshConfigList()
+	//	if items[index].Kube.Ping() {
+	//		//a.Items[index].StatusText = "🟢"
+	//	} else {
+	//		//a.Items[index].StatusText = "🔴"
+	//	}
+	//	a.RefreshConfigList()
+	//	//_ = items[index].RefreshClusterInfo(a.TalosPath)
+	//}
+
 }
 
 func (a *App) HandleArgs(args []string) (bool, error) {
