@@ -2,6 +2,7 @@ package kube
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -12,28 +13,29 @@ func (k *Kube) GetName() string {
 }
 
 func (k *Kube) GetNodes() int {
-	nodes, err := k.Clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+	nodes, err := k.Clientset.CoreV1().Nodes().List(k.ctx, metav1.ListOptions{})
 	if err != nil {
 		return 0
 	}
+	fmt.Println(len(nodes.Items))
 	return len(nodes.Items)
 }
 func (k *Kube) GetPods() int {
-	pods, err := k.Clientset.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{})
+	pods, err := k.Clientset.CoreV1().Pods("").List(k.ctx, metav1.ListOptions{})
 	if err != nil {
 		return 0
 	}
 	return len(pods.Items)
 }
 func (k *Kube) GetNamespaces() int {
-	namespace, err := k.Clientset.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
+	namespace, err := k.Clientset.CoreV1().Namespaces().List(k.ctx, metav1.ListOptions{})
 	if err != nil {
 		return 0
 	}
 	return len(namespace.Items)
 }
 func (k *Kube) GetServices() int {
-	services, err := k.Clientset.CoreV1().Services("").List(context.TODO(), metav1.ListOptions{})
+	services, err := k.Clientset.CoreV1().Services("").List(k.ctx, metav1.ListOptions{})
 	if err != nil {
 		return 0
 	}

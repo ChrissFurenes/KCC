@@ -4,7 +4,7 @@ go 1.27.2
 
 require (
 	github.com/gdamore/tcell/v2 v2.13.10
-	github.com/mattn/go-runewidth v0.0.16
+	github.com/mattn/go-runewidth v0.0.31
 	github.com/rivo/tview v0.42.1-0.20250929082832-e113793670e2
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/apimachinery v0.37.1
@@ -12,6 +12,7 @@ require (
 )
 
 require (
+	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/emicklei/go-restful/v3 v3.13.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.6 // indirect

@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -215,9 +217,9 @@ func statusColorIcon(ok bool) (icon string) {
 	}
 	return " 🔴"
 }
-func StatusText(ok bool, text string) string {
+func StatusText(ok bool) string {
 	if ok {
-		return GreenText(text) + statusColorIcon(ok)
+		return GreenText(strings.ToUpper(strconv.FormatBool(ok))) + statusColorIcon(ok)
 	}
-	return RedText(text) + statusColorIcon(ok)
+	return RedText(strings.ToUpper(strconv.FormatBool(ok))) + statusColorIcon(ok)
 }

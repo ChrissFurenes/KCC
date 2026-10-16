@@ -1,6 +1,7 @@
 package kube
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/url"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/chrissfurenes/kcc/cmd"
 	"gopkg.in/yaml.v3"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -34,22 +36,25 @@ type KubeConfigInformation struct {
 }
 
 type Kube struct {
-	KubePath        string
-	ClusterName     string
-	CurrentFolder   string
-	CurrentFilePath string
-	User            string
-	Address         string
-	Port            string
-	Reachable       bool
-	Nodes           string
-	Pods            string
-	Namespaces      string
-	Services        string
-	Kubeconfig      *rest.Config
-	Clientset       *kubernetes.Clientset
-	Status          string
-	KubeConfig      KubeConfigInformation
+	KubePath         string
+	ClusterName      string
+	CurrentFolder    string
+	CurrentFilePath  string
+	CurrentFileName  string
+	User             string
+	Address          string
+	Port             string
+	Reachable        bool
+	Nodes            string
+	Pods             string
+	Namespaces       string
+	Services         string
+	Kubeconfigconfig *rest.Config
+	Clientset        *kubernetes.Clientset
+	ctx              context.Context
+	cancel           context.CancelFunc
+	Status           string
+	KubeConfig       KubeConfigInformation
 }
 
 func NewKube(CurrentFilePath string) *Kube {
@@ -91,6 +96,7 @@ func (k *Kube) Init() error {
 	k.Ping()
 	if k.Reachable {
 		k.SetPods()
+		fmt.Println(k.Clientset.CoreV1().Nodes().List(k.ctx, metav1.ListOptions{}))
 		k.SetNodes()
 		k.SetNamespaces()
 	}
@@ -140,16 +146,18 @@ func (k *Kube) Validate(path string) error { // TODO: Needs to validate config
 	return nil
 }
 func (k *Kube) InitCluster() error {
-	Kubeconfig, err := clientcmd.BuildConfigFromFlags("", k.CurrentFilePath)
+	Kubeconfigen, err := clientcmd.BuildConfigFromFlags("", k.CurrentFilePath)
 	if err != nil {
 		return err
 	}
-	k.Kubeconfig = Kubeconfig
-	Clientset, err := kubernetes.NewForConfig(k.Kubeconfig)
+	k.Kubeconfigconfig = Kubeconfigen
+	Clientset, err := kubernetes.NewForConfig(k.Kubeconfigconfig)
 	if err != nil {
 		return err
 	}
 	k.Clientset = Clientset
+	k.ctx, k.cancel = context.WithTimeout(context.Background(), 5*time.Second)
+	defer k.cancel()
 	return nil
 }
 
@@ -159,6 +167,7 @@ func (k *Kube) SetNodes() {
 
 func (k *Kube) SetPods() {
 	k.Pods = strconv.Itoa(k.GetPods())
+	fmt.Println(k.Pods)
 }
 
 func (k *Kube) SetNamespaces() {

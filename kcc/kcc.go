@@ -2,8 +2,6 @@ package kcc
 
 import (
 	"os"
-	"strconv"
-	"strings"
 
 	"github.com/chrissfurenes/kcc/cmd"
 	"github.com/chrissfurenes/kcc/kube"
@@ -82,7 +80,7 @@ func (i *Item) GetInfoText() string {
 			"User:.. " + i.Kube.User + "\n" +
 			"IP:.... " + i.Kube.Address + "\n" +
 			"Port:.. " + i.Kube.Port + "\n" +
-			"Ping:.. " + strings.ToUpper(strconv.FormatBool(i.Kube.Reachable)) + "\n" + // TODO: needs to be fixed
+			"Ping:.. " + i.PingText() + "\n" + // TODO: needs to be fixed
 			"Path:.. " + i.Path + "\n" // to debugging
 		if i.Kube.Reachable { // TODO: Change to run when get info from cluster (nodes, pods ....)
 			clusterinfo := "\n" +
@@ -116,10 +114,8 @@ func (i *Item) IsCurrentItem() bool {
 }
 
 func (i *Item) PingText() string {
-	if i.Kube.Reachable {
-		return cmd.StatusText(true, "TRUE")
-	}
-	return cmd.StatusText(false, "FALSE")
+	return cmd.StatusText(i.Kube.Reachable)
+
 }
 
 ///////////////
