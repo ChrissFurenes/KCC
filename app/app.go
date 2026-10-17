@@ -107,6 +107,7 @@ func (a *App) LoadEntities() error { // TODO: need some changes or remove
 			kc := kcc.NewKubeConfig(filepath.Join(a.ConfigDir(), entry.Name()))
 
 			//k := kube.NewKube(filepath.Join(a.ConfigDir(), entry.Name()))
+			currentEntity.Kube = *kc
 			currentEntity.Name = kc.GetName()
 			currentEntity.Path = filepath.Join(a.ConfigDir(), entry.Name())
 			currentEntity.FileName = entry.Name()

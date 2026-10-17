@@ -12,7 +12,6 @@ import (
 
 	"github.com/chrissfurenes/kcc/cmd"
 	"gopkg.in/yaml.v3"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -96,15 +95,11 @@ func (k *Kube) Init() error {
 	k.Ping()
 	if k.Reachable {
 		k.SetPods()
-		fmt.Println(k.Clientset.CoreV1().Nodes().List(k.ctx, metav1.ListOptions{}))
+		//fmt.Println(k.Clientset.CoreV1().Nodes().List(k.ctx, metav1.ListOptions{})) // TODO: Remove
 		k.SetNodes()
 		k.SetNamespaces()
 	}
 	return nil
-}
-
-func (k *Kube) ConfigDir() string {
-	return filepath.Join(k.KubePath, "configs", k.CurrentFolder)
 }
 
 func ImportConfig(from string, to string) error {

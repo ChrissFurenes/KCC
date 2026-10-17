@@ -23,7 +23,7 @@ func UserHomeDir() string {
 	return filepath.Clean(os.Getenv("HOME"))
 }
 
-func KubePath() string {
+func KubePath() string { // ############################# TODO REMOVE
 	Dirpath := filepath.Join(UserHomeDir(), ".kube")
 	err := TestFolder(Dirpath)
 	if err != nil {
@@ -42,7 +42,7 @@ func KubeConfigsPath() string {
 		panic(err)
 	}
 	return DirPath
-}
+} // ###################################################################
 
 func TalosPath() string {
 	Dirpath := filepath.Join(UserHomeDir(), ".talos")
