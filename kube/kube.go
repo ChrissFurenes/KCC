@@ -141,7 +141,9 @@ func (k *Kube) Validate(path string) error { // TODO: Needs to validate config
 	return nil
 }
 func (k *Kube) InitCluster() error {
+	//fmt.Println(k.CurrentFilePath)
 	Kubeconfigen, err := clientcmd.BuildConfigFromFlags("", k.CurrentFilePath)
+	//fmt.Println(Kubeconfigen)
 	if err != nil {
 		return err
 	}
@@ -152,7 +154,8 @@ func (k *Kube) InitCluster() error {
 	}
 	k.Clientset = Clientset
 	k.ctx, k.cancel = context.WithTimeout(context.Background(), 5*time.Second)
-	defer k.cancel()
+
+	//defer cancel()
 	return nil
 }
 
@@ -162,7 +165,6 @@ func (k *Kube) SetNodes() {
 
 func (k *Kube) SetPods() {
 	k.Pods = strconv.Itoa(k.GetPods())
-	fmt.Println(k.Pods)
 }
 
 func (k *Kube) SetNamespaces() {
