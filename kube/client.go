@@ -2,7 +2,6 @@ package kube
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,7 +16,7 @@ func (k *Kube) GetNodes() int {
 	if err != nil {
 		return 0
 	}
-	fmt.Println(len(nodes.Items))
+	//fmt.Println(len(nodes.Items))
 	return len(nodes.Items)
 }
 func (k *Kube) GetPods() int {

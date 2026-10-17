@@ -62,6 +62,7 @@ Your Kubernetes configuration directory should be structured as follows:
         └── config5.yaml
 
 ````
+**NOTE!** This wil not be the directory structure in future it wil use ``~/kcc/configs``. And will be one file for kube and talos, this wil be handeled by import tool
 
 - ~/.kube/config is the file used by kubectl and k9s
 
@@ -69,10 +70,10 @@ Your Kubernetes configuration directory should be structured as follows:
 
 ## Features coming soon
 - [X] supports folders
-- [ ] test if cluster is reachable
-- [ ] get num of pods
-- [ ] get num of nodes
-- [ ] get num of namespaces
+- [X] test if cluster is reachable
+- [X] get num of pods
+- [X] get num of nodes
+- [X] get num of namespaces
 - [ ] get num of pod(s) in failure
 - [ ] posable to lock files in ``~/.kube/configs``
   - [ ] use password or yubikey (passkey)
@@ -82,6 +83,10 @@ Your Kubernetes configuration directory should be structured as follows:
   - [ ] get talos version on nodes
   - [ ] download talosctl version that is running on cluster
   - [ ] find talosctl version(s) installed on client
+
+## Coming changes
+ - [ ] use path ``~/.kcc/configs`` for kube and talos config 
+ - [ ] combine kube and talos config to one file
 
 ### Suggestions or problems? 
 open an issue :)
