@@ -7,7 +7,7 @@ import (
 )
 
 func (k *Kube) ConfigDir() string {
-	return filepath.Join(k.KubePath, "configs", k.CurrentFolder)
+	return filepath.Join(KubePath(), "configs", k.CurrentFolder)
 }
 
 func KubePath() string {

@@ -3,8 +3,6 @@ package talos
 import (
 	"os"
 	"path/filepath"
-
-	"github.com/chrissfurenes/kcc/cmd"
 )
 
 type TalosConfigInformation struct {
@@ -28,7 +26,7 @@ type Talos struct {
 
 func NewTalos() *Talos {
 	t := &Talos{
-		TalosPath:     cmd.TalosPath(),
+		TalosPath:     TalosPath(),
 		CurrentFolder: "",
 	}
 	return t

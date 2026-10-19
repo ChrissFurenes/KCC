@@ -17,6 +17,7 @@ type Item struct {
 	Status      string
 	StatusText  string
 	File        []byte
+	FileType    string
 	IsDir       bool
 	IsConfig    bool
 	IsActive    bool
@@ -27,16 +28,17 @@ type Item struct {
 	Kube        kube.Kube   // TODO: May remove... hmmm
 	Talos       talos.Talos // TODO: May remove... hmmm
 }
-
-type Kccfile struct {
-	FileType string                     `yaml:"file-type"`
-	Kube     kube.KubeConfigInformation `yaml:"kube"`
-
-	Talos talos.TalosConfigInformation `yaml:"talos"`
-}
 type Kcc struct {
+	Name          string
 	KccPath       string
 	CurrentFolder string
+	FilePath      string
+}
+
+type Kccfile struct {
+	FileType string                       `yaml:"file-type"`
+	Kube     kube.KubeConfigInformation   `yaml:"kube"`
+	Talos    talos.TalosConfigInformation `yaml:"talos"`
 }
 
 //spinner := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
@@ -46,8 +48,6 @@ func NewItem(file string) *Item {
 
 	return &Item{
 		Name:     k.ClusterName,
-		Path:     k.KubePath,
-		FileName: k.KubePath,
 		File:     nil,
 		IsDir:    false,
 		IsConfig: true,
@@ -56,7 +56,15 @@ func NewItem(file string) *Item {
 	}
 
 }
-
+func NewKccConfig(file string) *Kcc {
+	return NewKcc(file)
+}
+func NewKcc(file string) *Kcc {
+	k := &Kcc{
+		FilePath: file,
+	}
+	return k
+}
 func NewKubeConfig(kubefile string) *kube.Kube { // NEW. TODO: FIX this
 	return kube.NewKube(kubefile)
 }
@@ -88,6 +96,7 @@ func (i *Item) GetDisplayName() string { // DONE
 func (i *Item) GetInfoText() string {
 	if i.IsConfig {
 		i.InfoText = "Name:.. " + i.Name + "\n\n" +
+			"FileType: " + i.FileType + "\n\n" +
 			"User:.. " + i.Kube.User + "\n" +
 			"IP:.... " + i.Kube.Address + "\n" +
 			"Port:.. " + i.Kube.Port + "\n" +
@@ -117,7 +126,7 @@ func (i *Item) IsCurrentItem() bool {
 	if err != nil {
 		return false
 	}
-	currfile, err := os.Stat(cmd.KubeConfigPath())
+	currfile, err := os.Stat(kube.KubeConfigPath())
 	if err != nil {
 		return false
 	}

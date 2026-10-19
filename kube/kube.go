@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/chrissfurenes/kcc/cmd"
 	"gopkg.in/yaml.v3"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -47,11 +46,10 @@ type KubeConfigInformation struct {
 }
 
 type Kube struct {
-	KubePath         string
 	ClusterName      string
-	CurrentFolder    string
-	CurrentFilePath  string
-	CurrentFileName  string
+	CurrentFolder    string // TODO: REMOVE
+	CurrentFilePath  string // TODO: REMOVE
+	CurrentFileName  string // TODO: REMOVE
 	User             string
 	Address          string
 	Port             string
@@ -70,7 +68,6 @@ type Kube struct {
 
 func NewKube(CurrentFilePath string) *Kube {
 	k := &Kube{
-		KubePath:        KubePath(),
 		CurrentFilePath: CurrentFilePath,
 	}
 	err := k.Init()
@@ -78,6 +75,10 @@ func NewKube(CurrentFilePath string) *Kube {
 		fmt.Println(err)
 	}
 	return k
+}
+
+func (k *Kube) InitFile() error { // TODO: make finish
+	return nil
 }
 
 func (k *Kube) Init() error {
@@ -187,7 +188,7 @@ func (k *Kube) IsCurrentCluster() bool {
 	if err != nil {
 		return false
 	}
-	currfile, err := os.Stat(cmd.KubePath())
+	currfile, err := os.Stat(KubePath())
 	if err != nil {
 		return false
 	}

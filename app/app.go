@@ -9,6 +9,8 @@ import (
 	"github.com/chrissfurenes/kcc/cli"
 	"github.com/chrissfurenes/kcc/cmd"
 	"github.com/chrissfurenes/kcc/kcc"
+	"github.com/chrissfurenes/kcc/kube"
+	"github.com/chrissfurenes/kcc/talos"
 	"github.com/gdamore/tcell/v2"
 	"github.com/mattn/go-runewidth"
 	"github.com/rivo/tview"
@@ -29,8 +31,8 @@ type App struct {
 
 func NewApp(version string) *App { // OK
 	a := &App{
-		KubePath:      cmd.KubePath(),
-		TalosPath:     cmd.TalosPath(),
+		KubePath:      kube.KubePath(),
+		TalosPath:     talos.TalosPath(),
 		CurrentFolder: "",
 		UI:            tview.NewApplication(),
 		ConfigList:    tview.NewList().ShowSecondaryText(false),
@@ -49,7 +51,7 @@ func NewApp(version string) *App { // OK
 	return a
 }
 
-func (a *App) ConfigDir() string { // needs change
+func (a *App) ConfigDir() string { // TODO: REMOVE
 	return filepath.Join(a.KubePath, "configs", a.CurrentFolder)
 }
 
@@ -112,11 +114,33 @@ func (a *App) LoadEntities() error { // TODO: need some changes or remove
 			currentEntity.FileName = entry.Name()
 			currentEntity.IsDir = false
 			currentEntity.IsConfig = true
+			currentEntity.FileType = "Kubeconfig"
 			currentEntity.Kube.Address = kc.Address
 			currentEntity.Kube.Port = kc.Port
 			currentEntity.Kube.Reachable = kc.Reachable
 			currentEntity.Kube.Status = kc.Status
 			currentEntity.Kube.User = kc.User
+		}
+		a.Items = append(a.Items, currentEntity)
+	}
+	kccEntrie, err := os.ReadDir(kcc.KccConfigsPath())
+	if err != nil {
+		return err
+	}
+	for _, kccEntrie := range kccEntrie {
+		var currentEntity kcc.Item
+		if kccEntrie.IsDir() {
+			currentEntity.Name = kccEntrie.Name()
+			currentEntity.IsDir = true
+		} else {
+			kc := kcc.NewKccConfig(filepath.Join(kcc.KccConfigsPath(), kccEntrie.Name()))
+			currentEntity.Name = kc.Name
+			currentEntity.Name = kccEntrie.Name()
+			currentEntity.FileType = "KCC File"
+			currentEntity.IsDir = false
+			currentEntity.IsConfig = true
+			currentEntity.IsTalos = true
+
 		}
 		a.Items = append(a.Items, currentEntity)
 	}
@@ -248,8 +272,8 @@ func (a *App) HandleArgs(args []string) (bool, error) {
 		cmd.Help()
 		return true, nil
 	case "backup", "-b", "--backup":
-		err := cmd.CreateBackup()
-		return true, err
+		//err := cmd.CreateBackup()
+		return true, nil
 
 	case "import", "i", "-i", "--import":
 
@@ -327,6 +351,10 @@ func (a *App) Run() error {
 			go a.RefreshClusterInfo()
 		case tcell.KeyBackspace, tcell.KeyEsc:
 			a.GoBack()
+		case tcell.KeyCtrlK:
+			// TODO: Apply kubeconfig
+		case tcell.KeyCtrlT:
+			// TODO: Apply talosconfig
 		}
 		return event
 	})

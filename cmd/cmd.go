@@ -9,7 +9,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"time"
 )
 
 func UserHomeDir() string {
@@ -23,45 +22,45 @@ func UserHomeDir() string {
 	return filepath.Clean(os.Getenv("HOME"))
 }
 
-func KubePath() string { // ############################# TODO REMOVE
-	Dirpath := filepath.Join(UserHomeDir(), ".kube")
-	err := TestFolder(Dirpath)
-	if err != nil {
-		panic(err)
-	}
-	return filepath.Join(UserHomeDir(), ".kube")
-}
-func KubeConfigPath() string {
-	return filepath.Join(KubePath(), "config")
-}
-func KubeConfigsPath() string {
-	Path := KubePath()
-	DirPath := filepath.Join(Path, "configs")
-	err := TestFolder(DirPath)
-	if err != nil {
-		panic(err)
-	}
-	return DirPath
-} // ###################################################################
+//func KubePath() string { // ############################# TODO REMOVE
+//	Dirpath := filepath.Join(UserHomeDir(), ".kube")
+//	err := TestFolder(Dirpath)
+//	if err != nil {
+//		panic(err)
+//	}
+//	return filepath.Join(UserHomeDir(), ".kube")
+//}
+//func KubeConfigPath() string {
+//	return filepath.Join(KubePath(), "config")
+//}
+//func KubeConfigsPath() string {
+//	Path := KubePath()
+//	DirPath := filepath.Join(Path, "configs")
+//	err := TestFolder(DirPath)
+//	if err != nil {
+//		panic(err)
+//	}
+//	return DirPath
+//} // ###################################################################
 
-func TalosPath() string {
-	Dirpath := filepath.Join(UserHomeDir(), ".talos")
-	err := TestFolder(Dirpath)
-	if err != nil {
-		panic(err)
-	}
-	return filepath.Join(UserHomeDir(), ".talos")
-}
-func TalosConfigsPath() string {
-	Path := TalosPath()
-	DirPath := filepath.Join(Path, "configs")
-	err := TestFolder(DirPath)
-	if err != nil {
-		panic(err)
-	}
-	return DirPath
-}
-
+//	func TalosPath() string {
+//		Dirpath := filepath.Join(UserHomeDir(), ".talos")
+//		err := TestFolder(Dirpath)
+//		if err != nil {
+//			panic(err)
+//		}
+//		return filepath.Join(UserHomeDir(), ".talos")
+//	}
+//
+//	func TalosConfigsPath() string {
+//		Path := TalosPath()
+//		DirPath := filepath.Join(Path, "configs")
+//		err := TestFolder(DirPath)
+//		if err != nil {
+//			panic(err)
+//		}
+//		return DirPath
+//	}
 func TestFolder(name string) error {
 	info, err := os.Stat(name)
 	if err == nil {
@@ -80,37 +79,37 @@ func CreateFolder(name string) error {
 	return os.Mkdir(name, 0600)
 }
 
-func CreateBackup() error {
-	fmt.Println("Creating backup to ~/.kcc/backup/")
-	err := CreateFolder(filepath.Join(UserHomeDir(), ".kcc"))
-	if err != nil && !errors.Is(err, os.ErrExist) {
-		return err
-	}
-	err = CreateFolder(filepath.Join(UserHomeDir(), ".kcc/backup"))
-	if err != nil && !errors.Is(err, os.ErrExist) {
-		return err
-	}
-	err = CreateFolder(filepath.Join(UserHomeDir(), ".kcc/backup/kube/"))
-	if err != nil && !errors.Is(err, os.ErrExist) {
-		return err
-	}
-	err = CreateFolder(filepath.Join(UserHomeDir(), ".kcc/backup/talos/"))
-	if err != nil && !errors.Is(err, os.ErrExist) {
-		return err
-	}
-	destKubeBackup := filepath.Join(UserHomeDir(), ".kcc/backup/kube/")
-	destTalosBackup := filepath.Join(UserHomeDir(), ".kcc/backup/talos/")
-
-	err = copyDir(KubeConfigsPath(), destKubeBackup)
-	if err != nil {
-		return err
-	}
-	err = copyDir(TalosConfigsPath(), destTalosBackup)
-	if err != nil {
-		return err
-	}
-	return nil
-}
+//func CreateBackup() error { // TODO: REMOVE
+//	fmt.Println("Creating backup to ~/.kcc/backup/")
+//	err := CreateFolder(filepath.Join(UserHomeDir(), ".kcc"))
+//	if err != nil && !errors.Is(err, os.ErrExist) {
+//		return err
+//	}
+//	err = CreateFolder(filepath.Join(UserHomeDir(), ".kcc/backup"))
+//	if err != nil && !errors.Is(err, os.ErrExist) {
+//		return err
+//	}
+//	err = CreateFolder(filepath.Join(UserHomeDir(), ".kcc/backup/kube/"))
+//	if err != nil && !errors.Is(err, os.ErrExist) {
+//		return err
+//	}
+//	err = CreateFolder(filepath.Join(UserHomeDir(), ".kcc/backup/talos/"))
+//	if err != nil && !errors.Is(err, os.ErrExist) {
+//		return err
+//	}
+//	destKubeBackup := filepath.Join(UserHomeDir(), ".kcc/backup/kube/")
+//	destTalosBackup := filepath.Join(UserHomeDir(), ".kcc/backup/talos/")
+//
+//	err = copyDir(kube.KubeConfigsPath(), destKubeBackup)
+//	if err != nil {
+//		return err
+//	}
+//	err = copyDir(talos.TalosConfigsPath(), destTalosBackup)
+//	if err != nil {
+//		return err
+//	}
+//	return nil
+//}
 
 func Help() {
 	fmt.Println("KCC usage:")
@@ -192,15 +191,16 @@ func CreateIfNotExists(dir string, perm os.FileMode) error {
 	return nil
 }
 
-func Backup(version string) { // TODO: to add file check so it don`t always create a backup folder
-	now := time.Now()
-	str1 := now.Format("02-01-2006_15-04-05")
-	err := os.Mkdir(filepath.Join(KubePath(), "backup__V_"+version+"__date_"+str1), 0777)
-	if err != nil {
-		panic(err)
-	}
-
-}
+// TODO: Move to KCC, Talos and Kube
+//func Backup(version string) { // TODO: to add file check so it don`t always create a backup folder
+//	now := time.Now()
+//	str1 := now.Format("02-01-2006_15-04-05")
+//	err := os.Mkdir(filepath.Join(kube.KubePath(), "backup__V_"+version+"__date_"+str1), 0777)
+//	if err != nil {
+//		panic(err)
+//	}
+//
+//}
 
 func RedText(text string) string {
 	return "[red]" + text + "[::-][white]"

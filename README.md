@@ -86,7 +86,7 @@ Your Kubernetes configuration directory should be structured as follows:
 
 ## Coming changes
  - [ ] use path ``~/.kcc/configs`` for kube and talos config 
- - [ ] combine kube and talos config to one file
+ - [X] combine kube and talos config to one file
 
 ### Suggestions or problems? 
 open an issue :)
