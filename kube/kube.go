@@ -96,9 +96,10 @@ func (k *Kube) Init() error {
 	go k.Ping()
 	if k.Reachable {
 		k.SetPods()
-		//fmt.Println(k.Clientset.CoreV1().Nodes().List(k.ctx, metav1.ListOptions{})) // TODO: Remove
 		k.SetNodes()
 		k.SetNamespaces()
+	} else {
+		k.Status = "Not Reachable"
 	}
 	return nil
 }
