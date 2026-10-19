@@ -23,9 +23,20 @@ type Item struct {
 	IsTalos     bool
 	IsLocked    bool
 	IsBack      bool
+	KccFile     Kccfile
+	Kube        kube.Kube   // TODO: May remove... hmmm
+	Talos       talos.Talos // TODO: May remove... hmmm
+}
 
-	Kube  kube.Kube
-	Talos talos.Talos
+type Kccfile struct {
+	FileType string                     `yaml:"file-type"`
+	Kube     kube.KubeConfigInformation `yaml:"kube"`
+
+	Talos talos.TalosConfigInformation `yaml:"talos"`
+}
+type Kcc struct {
+	KccPath       string
+	CurrentFolder string
 }
 
 //spinner := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}

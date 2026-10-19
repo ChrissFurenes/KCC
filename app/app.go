@@ -6,10 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/chrissfurenes/kcc/cli"
 	"github.com/chrissfurenes/kcc/cmd"
 	"github.com/chrissfurenes/kcc/kcc"
-	"github.com/chrissfurenes/kcc/kube"
-	"github.com/chrissfurenes/kcc/talos"
 	"github.com/gdamore/tcell/v2"
 	"github.com/mattn/go-runewidth"
 	"github.com/rivo/tview"
@@ -36,7 +35,7 @@ func NewApp(version string) *App { // OK
 		UI:            tview.NewApplication(),
 		ConfigList:    tview.NewList().ShowSecondaryText(false),
 		InfoData:      tview.NewTextView(),
-		CommandList:   tview.NewTextView().SetText("[F5] Refresh").SetTextAlign(tview.AlignCenter),
+		CommandList:   tview.NewTextView().SetText("[ENTER] Apply KCC file [F5] Refresh  [^K] Apply kubeconfig  [^T] Apply talosconfig").SetTextAlign(tview.AlignCenter),
 		version:       version,
 	}
 	a.Grid = tview.NewGrid().
@@ -252,31 +251,41 @@ func (a *App) HandleArgs(args []string) (bool, error) {
 		err := cmd.CreateBackup()
 		return true, err
 
-	case "import", "i":
-		if len(args) != 4 {
-			return true, fmt.Errorf("usage: kcc import [kube/talos] <from> <to>")
+	case "import", "i", "-i", "--import":
+
+		if len(args) >= 5 {
+			return true, fmt.Errorf("usage: kcc import <kubeconfig> <talosconfig> <to> (to is in ~/.kcc/configs/)")
 		}
-		switch args[1] {
-		case "kubeconfig", "kube":
-			if len(args) < 3 {
-				return true, fmt.Errorf("usage: kcc import kubeconfig/kube <from> <to> (to is in ~/.kube/configs/)")
-			}
-			err := kube.ImportConfig(args[2], args[3])
-			return true, err
-		case "talosconfig", "talos":
-			if len(args) < 3 {
-				return true, fmt.Errorf("usage: kcc import talosconfig/talos <from> <to> (to is in ~/.talos/configs/")
-			}
-			err := talos.ImportConfig(args[2], args[3])
-			return true, err
+
+		if len(args) < 3 {
+			return true, fmt.Errorf("usage: kcc import <kubeconfig> <talosconfig> <to> (to is in ~/.kcc/configs/)")
 		}
+		importexport := cli.Importexport{
+			KubeConfigFilePath:  args[1],
+			TalosConfigFilePath: args[2],
+			OutputFilePath:      args[3],
+		}
+		importexport.Import()
 		fmt.Println("Config imported")
 		return true, nil
 
-	default:
-		return true, fmt.Errorf("unknown command: %s", args[0])
+	case "export", "e":
+		if len(args) >= 4 {
+			return true, fmt.Errorf("usage: kcc export <kcc config> <dest folder>")
+		}
+		if len(args) < 2 {
+			return true, fmt.Errorf("usage: kcc export <kcc config> <dest folder>")
+		}
+		exportconf := cli.Importexport{
+			InputFilePath:  args[1],
+			OutputFilePath: args[2],
+		}
+		exportconf.Export()
+
 	}
-	return false, nil
+
+	return true, nil
+
 }
 
 func (a *App) Run() error {

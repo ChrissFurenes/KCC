@@ -15,6 +15,9 @@ type TalosContextConfig struct {
 	Target    string   `yaml:"target,omitempty"`
 	Endpoints []string `yaml:"endpoints"`
 	Nodes     []string `yaml:"nodes,omitempty"`
+	Ca        string   `yaml:"ca,omitempty"`
+	Crt       string   `yaml:"crt,omitempty"`
+	Key       string   `yaml:"key,omitempty"`
 }
 
 type Talos struct {

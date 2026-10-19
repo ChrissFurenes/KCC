@@ -18,20 +18,32 @@ import (
 )
 
 type KubeConfigInformation struct {
-	Clusters []struct {
-		Name    string `yaml:"name"`
+	ApiVersion string `yaml:"apiVersion"`
+	Clusters   []struct {
 		Cluster struct {
-			Server string `yaml:"server"`
+			Certificate_authority_data string `yaml:"certificate-authority-data"`
+			Server                     string `yaml:"server"`
 		} `yaml:"cluster"`
+		Name string `yaml:"name"`
 	} `yaml:"clusters"`
 
 	Contexts []struct {
 		Context struct {
-			Cluster string `yaml:"cluster"`
-			User    string `yaml:"user"`
+			Cluster   string `yaml:"cluster"`
+			Namespace string `yaml:"namespace"`
+			User      string `yaml:"user"`
 		} `yaml:"context"`
 		Name string `yaml:"name"`
 	} `yaml:"contexts"`
+	CurrentContext string `yaml:"current-context"`
+	Kind           string `yaml:"kind"`
+	Users          []struct {
+		Name string `yaml:"name"`
+		User struct {
+			ClientCertificate_data string `yaml:"client-certificate-data"`
+			Client_key_data        string `yaml:"client-key-data"`
+		}
+	} `yaml:"users"`
 }
 
 type Kube struct {
@@ -58,7 +70,7 @@ type Kube struct {
 
 func NewKube(CurrentFilePath string) *Kube {
 	k := &Kube{
-		KubePath:        cmd.KubePath(),
+		KubePath:        KubePath(),
 		CurrentFilePath: CurrentFilePath,
 	}
 	err := k.Init()
@@ -133,9 +145,6 @@ func (k *Kube) Ping() bool {
 		k.Reachable = true
 		return true
 	}
-
-	//.Println(k.Address)
-	//fmt.Println(k.Port)
 	return false
 }
 
@@ -143,9 +152,9 @@ func (k *Kube) Validate(path string) error { // TODO: Needs to validate config
 	return nil
 }
 func (k *Kube) InitCluster() error {
-	//fmt.Println(k.CurrentFilePath)
+
 	Kubeconfigen, err := clientcmd.BuildConfigFromFlags("", k.CurrentFilePath)
-	//fmt.Println(Kubeconfigen)
+
 	if err != nil {
 		return err
 	}
